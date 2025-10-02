@@ -1,2 +1,0 @@
-sample	hic_file	resolution	domains	periphery_constraints	mask_cis	mask_trans
-GSE246947_hg38_MCF10A_C1_merged	data/GSE246947_hg38_MCF10A_C1_merged.mcool	50000		data/GSE246947_hg38_MCF10A_C1_merged_domains.50000.bed.gz		
