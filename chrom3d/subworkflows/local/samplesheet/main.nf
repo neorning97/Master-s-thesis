@@ -1,0 +1,224 @@
+// Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+//
+// SPDX-License-Identifier: MIT
+
+def strip_resolution_from_cooler_uri(uri) {
+  file(uri.replaceFirst(/::\/resolutions\/\d+$/, ""), checkIfExists: true)
+}
+
+// Workaround for optional input files: https://github.com/nextflow-io/nextflow/issues/1694
+def make_optional_input(path) {
+  if (path?.trim()) {
+    return [file(path)]
+  }
+  return []
+}
+
+def parse_sample_sheet_row(row) {
+  def hic_fname = strip_resolution_from_cooler_uri(row.hic_file)
+  def files = [hic_fname]
+
+  def domains = make_optional_input(row.domains)
+  def periphery_constraints = make_optional_input(row.periphery_constraints)
+  def mask_cis = make_optional_input(row.mask_cis)
+  def mask_trans = make_optional_input(row.mask_trans)
+
+  tuple(row.sample,
+        files,
+        domains,
+        periphery_constraints,
+        mask_cis,
+        mask_trans)
+}
+
+
+workflow SAMPLESHEET {
+
+  take:
+    sample_sheet
+    sample
+    hic_file
+    resolution
+    domains
+    periphery_constraints
+    mask
+
+  main:
+    if (sample_sheet) {
+      if(sample) log.warn("'sample' parameter is ignored when 'sample_sheet' is defined")
+      if(hic_file) log.warn("'hic_file' parameter is ignored when 'sample_sheet' is defined")
+      if(mask) log.warn("'mask' parameter is ignored when 'sample_sheet' is defined")
+      if(resolution) log.warn("'resolution' parameter is ignored when 'sample_sheet' is defined")
+
+      CHECK_SYNTAX(file(sample_sheet, checkIfExists: true))
+    } else {
+      if(!sample || !hic_file || !resolution) {
+        log.error("The following parameters are required when 'sample_sheet' is undefined! Required parameters: sample, hic_file, resolution")
+      }
+
+      GENERATE(
+        sample,
+        hic_file,
+        resolution,
+        domains ? domains : "",
+        periphery_constraints ? periphery_constraints : "",
+        mask ? mask : ""
+      )
+
+      CHECK_SYNTAX(GENERATE.out.tsv)
+    }
+
+    CHECK_SYNTAX.out.tsv.set { sample_sheet }
+
+    sample_sheet
+      .splitCsv(sep: "\t", header: true)
+      .map { row ->
+        def toks = parse_sample_sheet_row(row)
+        // Concatenate path to coolers and optional files
+        toks[1] + toks[2] + toks[3] + toks[4] + toks[5]
+      }
+      .flatten()
+      .unique()
+      .filter { !!it }
+      .set { files_from_sample_sheet }
+
+    CHECK_FILES(
+      sample_sheet,
+      files_from_sample_sheet.collect()
+    )
+
+    NCHG_CIS(
+      CHECK_FILES.out.tsv
+    )
+    NCHG_TRANS(
+      CHECK_FILES.out.tsv
+    )
+
+  emit:
+    tsv = CHECK_FILES.out.tsv
+    nchg_cis = NCHG_CIS.out.tsv
+    nchg_trans = NCHG_TRANS.out.tsv
+}
+
+process GENERATE {
+  label 'duration_very_short'
+
+  cpus 1
+
+  input:
+    val sample
+    val hic_file
+    val resolution
+    val domains
+    val periphery_constraints
+    val mask
+
+  output:
+    path "sample_sheet.tsv", emit: tsv
+
+  script:
+    """
+    for param in '$sample' '$hic_file' '$resolution'; do
+      if [[ "\$param" == 'null' ]]; then
+        2>&1 echo 'Parameters sample, hic_file is required when no samplesheet is provided!'
+        2>&1 echo "sample='$sample'; hic_file='$hic_file'; resolution='$resolution'"
+        exit 1
+      fi
+    done
+
+    printf 'sample\\thic_file\\tresolution\\tdomains\\tperiphery_constraints\\tmask_cis\\tmask_trans\\n' > sample_sheet.tsv
+    printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \\
+           '$sample' \\
+           '$hic_file' \\
+           '$resolution' \\
+           '$domains' \\
+           '$periphery_constraints' \\
+           '$mask' \\
+           '$mask' |
+    tee -a sample_sheet.tsv
+    """
+}
+
+process CHECK_SYNTAX {
+  label 'duration_very_short'
+
+  cpus 1
+
+  input:
+    path sample_sheet
+
+  output:
+    path "${sample_sheet}", includeInputs: true, emit: tsv
+
+  script:
+    """
+    chrom3d_nf_parse_samplesheet.py --detached '$sample_sheet' > /dev/null
+    """
+}
+
+process CHECK_FILES {
+  label 'duration_very_short'
+
+  cpus 1
+
+  input:
+    path sample_sheet
+    path files
+
+  output:
+    path outname, emit: tsv
+
+  script:
+    outname="${sample_sheet.baseName}.ok.tsv"
+    """
+    chrom3d_nf_parse_samplesheet.py '$sample_sheet' > '$outname'
+    """
+}
+
+process NCHG_CIS {
+  label 'duration_very_short'
+
+  cpus 1
+
+  input:
+    path sample_sheet
+
+  output:
+    path outname, emit: tsv
+
+  script:
+    basename="$sample_sheet" - ~/\.ok\.tsv$/
+    outname="${basename}.nchg.cis.tsv"
+    """
+    printf 'sample\\thic_file\\tresolution\\tdomains\\tmask\\n' > '$outname'
+    # Drop LADs column
+    cut -f 1-4,6 '$sample_sheet' |
+        tail -n +2 |
+        perl -pe 's/^(.*?)\\t/\\1_cis\\t/' \\
+        >> '$outname'
+    """
+}
+
+process NCHG_TRANS {
+  label 'duration_very_short'
+
+  cpus 1
+
+  input:
+    path sample_sheet
+
+  output:
+    path outname, emit: tsv
+
+  script:
+    basename="$sample_sheet" - ~/\.ok\.tsv$/
+    outname="${basename}.nchg.trans.tsv"
+    """
+    printf 'sample\\thic_file\\tresolution\\tdomains\\tmask\\n' > '$outname'
+    # Drop LADs column
+    cut -f 1-4,7 '$sample_sheet' |
+        tail -n +2 |
+        perl -pe 's/^(.*?)\\t/\\1_trans\\t/' \\
+        >> '$outname'
+    """
+}
