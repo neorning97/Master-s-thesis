@@ -1,0 +1,17 @@
+chrom	start	end	label	transloc_id
+chr2	0	92100000	C1_transloc_1	T1
+chr10	41600000	133797422	C1_transloc_1_partner	T1
+chr3	0	59225000	C1_transloc_2	T2
+chr17	16340000	83257441	C1_transloc_2_partner	T2
+chr3	0	68462000	C1_transloc_3	T3
+chr7	0	150000000	C1_transloc_3_partner	T3
+chr3	56933000	90650000	C1_transloc_4	T4
+chr17	0	19300000	C1_transloc_4_partner	T4
+chr6	0	170805979	C1_transloc_5	T5
+chr19	33715000	58617616	C1_transloc_5_partner	T5
+chr7	63700000	151700000	C1_transloc_6	T6
+chr9	24123000	35780000	C1_transloc_6_partner	T6
+chr8	126000000	128300000	C1_transloc_7	T7
+chr10	0	133797422	C1_transloc_7_partner	T7
+chr10	0	74500000	C1_transloc_8	T8
+chr17	29970000	83257441	C1_transloc_8_partner	T8
