@@ -1,0 +1,6 @@
+chrom	start	end	label	type	transloc_id	neighbor_chr
+chr3	58600001	73600000	C1_transloc_2_flank_end	non-transloc_flank	T1	chr17
+chr17	7700000	22700000	C1_transloc_2_partner_flank_start	non-transloc_flank	T1	chr3
+chr17	22700001	37700000	C1_transloc_3_flank_end	non-transloc_flank	T2	chr3
+chr3	43600000	58600000	C1_transloc_3_partner_flank_start	non-transloc_flank	T2	chr17
+chr19	31900001	46900000	C1_transloc_4_flank_end	non-transloc_flank	T3	chr6
