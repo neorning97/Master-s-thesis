@@ -1,0 +1,7 @@
+chrom	start	end	label	transloc_id
+chr3	0	58600000	T1_transloc_1	T1
+chr17	22700001	83257441	T1_transloc_1_partner	T1
+chr3	58600001	198295559	T1_transloc_2	T2
+chr17	0	22700000	T1_transloc_2_partner	T2
+chr6	0	170805979	T1_transloc_3	T3
+chr19	0	31900000	T1_transloc_3_partner	T3
