@@ -8,7 +8,7 @@ library(ggalluvial)
 # File paths
 # ===============================
 input_file <- "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/subcompartments/GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph"
-output_file <- "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/plots/subcompartment_alluvial_t317_2.pdf"
+output_file <- "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/plots/subcompartment_alluvial_t317_2.jpeg"
 
 # ===============================
 # Load data
