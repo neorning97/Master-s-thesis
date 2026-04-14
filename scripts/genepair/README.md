@@ -201,31 +201,3 @@ between the wildtype and the translocated condition.
 **Pair matching** — Before plotting, both the WT and condition distance tables
 are restricted to the gene pairs that appear in both (script 04,
 `enforce_equal_pairs`). This ensures the comparison is always like-for-like.
-
----
-
-## Repository structure
-
-```
-/scripts/
-    01_extract_gene_expression.py
-    02_compute_tc_distances.py
-    03_compute_wt_distances.py
-    04_plot_results.py
-    README.md
-/results/
-    T1_genes_expression.tsv
-    C1_genes_expression.tsv
-    T1_distances_agg.tsv
-    C1_distances_agg.tsv
-    WT_distances_agg.tsv
-/plots/
-    T1_transloc_scatter.png
-    T1_control_scatter.png
-    C1_transloc_scatter.png
-    C1_control_scatter.png
-```
-
-Note: The large raw distance files (`T1_distances.tsv`, `C1_distances.tsv`)
-are not uploaded to GitHub due to file size. They can be reproduced by running
-scripts 01 and 02.
