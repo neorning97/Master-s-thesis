@@ -225,3 +225,7 @@ are restricted to the gene pairs that appear in both (script 04,
     C1_transloc_scatter.png
     C1_control_scatter.png
 ```
+
+Note: The large raw distance files (`T1_distances.tsv`, `C1_distances.tsv`)
+are not uploaded to GitHub due to file size. They can be reproduced by running
+scripts 01 and 02.
