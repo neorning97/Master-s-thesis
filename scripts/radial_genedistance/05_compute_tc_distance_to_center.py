@@ -62,19 +62,19 @@ CONFIG = {
     "conditions": {
         "T1": {
             # Gene expression TSV from script 01
-            "gene_expression_file": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/genepair/inter-verify/T1_genes_expression.tsv",
+            "gene_expression_file": "/path/to/T1_genes_expression.tsv",
             # Directory of Chrom3D .cmm structural model files for T1
-            "cmm_dir":              "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/T1",
+            "cmm_dir":              "/path/to/cmm/T1",
             # Where to save the per-model distances (one row per gene per model)
-            "output":               "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/genepair/inter-verify/T1_distance_to_center.tsv",
+            "output":               "/path/to/T1_distance_to_center.tsv",
             # Where to save the aggregated summary (mean/std across all models)
-            "output_agg":           "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/genepair/inter-verify/T1_distance_to_center_agg.tsv",
+            "output_agg":           "/path/to/T1_distance_to_center_agg.tsv",
         },
         "C1": {
-            "gene_expression_file": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/genepair/inter-verify/C1_genes_expression.tsv",
-            "cmm_dir":              "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/C1",
-            "output":               "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/genepair/inter-verify/C1_distance_to_center.tsv",
-            "output_agg":           "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/genepair/inter-verify/C1_distance_to_center_agg.tsv",
+            "gene_expression_file": "/path/to/C1_genes_expression.tsv",
+            "cmm_dir":              "/path/to/cmm/C1",
+            "output":               "/path/to/C1_distance_to_center.tsv",
+            "output_agg":           "/path/to/C1_distance_to_center_agg.tsv",
         },
     },
 }
