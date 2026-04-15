@@ -11,7 +11,7 @@ A chromosomal translocation fuses portions of two chromosomes into a new
 derivative chromosome. To understand how the translocated segment's chromatin
 environment changes, this script draws horizontal subcompartment tracks
 showing the subcompartment state along the full length of each derivative
-chromosome — displaying both the translocated fragment and the chromosomal
+chromosome, displaying both the translocated fragment and the chromosomal
 body it joined, side by side.
 
 Subcompartments (A1, A2, B1, B2, B3) reflect the transcriptional and
@@ -30,7 +30,7 @@ translocation per applicable condition.
 
 | Script | What it does | Input | Output |
 |--------|-------------|-------|--------|
-| `11_subcompartment_tracks.py` | Draws subcompartment tracks for the full original chromosomes and the assembled derivative for each translocation × condition | Subcompartment bedGraph, translocation BED files | One PNG per translocation per condition |
+| `11_subcompartment_tracks.py` | Draws subcompartment tracks for the full original chromosomes and the assembled derivative for each translocation x condition | Subcompartment bedGraph, translocation BED files | One PNG per translocation per condition |
 
 ---
 
@@ -44,8 +44,8 @@ translocation per applicable condition.
 | t(2;10)        | WT, C1 only | chr2: 0–131.7 Mb | chr10: 39.8–133.8 Mb |
 
 t(2;10) is only plotted for WT and C1 because it does not occur in T1.
-Breakpoint coordinates are read directly from the translocation BED files —
-they do not need to be hardcoded in the script.
+Breakpoint coordinates are read directly from the translocation BED files.
+They do not need to be hardcoded in the script.
 
 ---
 
@@ -165,7 +165,7 @@ Each figure contains four panels:
    subcompartment state. Shows the pre-translocation environment of the
    region the fragment lands next to.
 3. **Derivative chromosome** — the fragment segment joined to the body
-   segment. A solid green vertical line marks the breakpoint — the junction
+   segment. A solid green vertical line marks the breakpoint, the junction
    between the two chromosomal regions.
 4. **Legend** — colour key for all subcompartment states.
 
