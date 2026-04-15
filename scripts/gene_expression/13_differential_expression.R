@@ -60,18 +60,18 @@
 # CONFIG – edit all paths here before running
 # ============================================================================
 
-# Raw gene count matrix (genes × samples, tab-separated).
+# Raw gene count matrix (genes x samples, tab-separated).
 # Must include a 'gene_id' column and a 'gene_name' column.
-COUNTS_FILE <- "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/GSE246689_gene_counts.tsv"
+COUNTS_FILE <- "/path/to/GSE246689_gene_counts.tsv"
 
 # Sample metadata table (tab-separated).
 # Must have sample IDs as row names and at least a 'condition' column
 # with values matching the column names of the counts file.
 # Expected conditions: WT, T1, C1.
-COLDATA_FILE <- "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/coldata.tsv"
+COLDATA_FILE <- "/path/to/coldata.tsv"
 
 # Where to save the output TSV files (created automatically if needed)
-OUTPUT_DIR <- "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/DE"
+OUTPUT_DIR <- "/path/to/results/DE"
 
 # Minimum total count across all samples for a gene to be included.
 # Genes with fewer counts than this are filtered before fitting the model.
@@ -115,7 +115,7 @@ coldata$condition <- factor(coldata$condition, levels = c("WT", "T1", "C1"))
 # Ensure sample order in the count matrix matches the metadata
 counts <- counts[, rownames(coldata)]
 
-cat(sprintf("Count matrix: %d genes × %d samples\n", nrow(counts), ncol(counts)))
+cat(sprintf("Count matrix: %d genes x %d samples\n", nrow(counts), ncol(counts)))
 cat(sprintf("Conditions: %s\n", paste(levels(coldata$condition), collapse = ", ")))
 
 
