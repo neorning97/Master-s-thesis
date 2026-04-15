@@ -86,18 +86,18 @@ from scipy.stats import kruskal, chi2_contingency
 # =============================================================================
 CONFIG = {
     # Bin classification table produced by script 10
-    "bins_file": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/subcompartment_classification/bins_annotation.csv",
+    "bins_file": "/path/to/bins_annotation.csv",
 
     # GTF annotation file (Ensembl GRCh38 protein-coding genes)
-    "gtf_file": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf",
+    "gtf_file": "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf",
 
     # RNA-seq TPM expression table (GEO: GSE246689)
-    "tpm_file": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/GSE246689_gene_tpm.tsv",
+    "tpm_file": "/path/to/GSE246689_gene_tpm.tsv",
 
     # DESeq2 results from script 13
     "de_files": {
-        "T1": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/DE/DE_WT_vs_T1.tsv",
-        "C1": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/DE/DE_WT_vs_C1.tsv",
+        "T1": "/path/to/DE_WT_vs_T1.tsv",
+        "C1": "/path/to/DE_WT_vs_C1.tsv",
     },
 
     # Column names for each replicate in the TPM file
@@ -114,7 +114,7 @@ CONFIG = {
     "padj_threshold": 0.05,
 
     # Where to save output plots and tables (created automatically)
-    "output_dir": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/DE/gene_bin_expression",
+    "output_dir": "/path/to/results/gene_bin_expression",
 }
 
 CONDITIONS = ["T1", "C1"]
