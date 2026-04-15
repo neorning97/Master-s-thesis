@@ -85,7 +85,7 @@ CONFIG = {
     },
 
     # Where to save the output plot (created automatically)
-    "output_dir": "/path/to/results/plots/chromosome_centroid_distance619",
+    "output_dir": "/path/to/results/plots/chromosome_centroid_distance",
 }
 # =============================================================================
 
