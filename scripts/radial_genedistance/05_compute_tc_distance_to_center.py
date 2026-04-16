@@ -43,8 +43,6 @@ Dependencies
     pandas, numpy
     Install with: pip install pandas numpy
 
-Author: Nadia Ørning
-Date:   08/01/26
 """
 
 import os
