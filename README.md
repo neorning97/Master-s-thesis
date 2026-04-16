@@ -129,11 +129,11 @@ only. To reproduce it, download the full annotation and run:
 
 ```bash
 # Download the full GENCODE GRCh38.p13 GTF
-wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.annotation.gtf.gz
-gunzip gencode.v38.annotation.gtf.gz
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_43/gencode.v43.annotation.gtf.gz
+gunzip gencode.v43.annotation.gtf.gz
 
 # Filter to protein-coding genes only
-grep -v "^#" gencode.v38.annotation.gtf \
+grep -v "^#" gencode.v43.annotation.gtf \
   | awk '$3 == "gene"' \
   | grep 'gene_type "protein_coding"' \
   > Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf
