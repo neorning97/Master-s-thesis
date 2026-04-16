@@ -191,7 +191,7 @@ nextflow run . \
   --output-dir results/ \
   --number_of_models 10 \
   -resume \
-  -c custom_resources.config
+  -c custom_resources.config \
   -with-apptainer    # or -with-docker
 ```
 
