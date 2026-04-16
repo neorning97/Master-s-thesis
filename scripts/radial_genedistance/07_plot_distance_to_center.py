@@ -44,8 +44,6 @@ Dependencies
     pandas, matplotlib, seaborn, scipy
     Install with: pip install pandas matplotlib seaborn scipy
 
-Author: Nadia Ørning
-Date:   08/01/26
 """
 
 import os
