@@ -28,8 +28,9 @@ throughout the background distribution.
 | `16_volcano_plots.py` | From the gene-pair distance table (scripts 01–04) | All translocations combined | None (visualisation only) |
 | `17_translocation_volcano_plots.py` | Directly from user-defined genomic coordinates | Each named translocation separately (Der(17)t(3;17), Der(3)t(3;17)) | Fisher DE enrichment + Fisher Up/Down bias |
 
-Use script 16 for a quick genome-wide overview of where translocated genes
-sit in the DE landscape. Use script 17 when you want to analyse specific
+Use script 16 for a genome-wide overview of where translocated genes sit
+in the DE landscape, and to generate the full gene lists used in GO
+enrichment (script 18). Use script 17 when you want to analyse specific
 named translocations independently and run statistical tests.
 
 ---
@@ -40,6 +41,7 @@ named translocations independently and run statistical tests.
 scripts 01–04  -->  T1_distances_agg.tsv, C1_distances_agg.tsv  -->  script 16
 script 13      -->  DE_WT_vs_T1.tsv, DE_WT_vs_C1.tsv            -->  scripts 16 and 17
 GTF annotation                                                  -->  script 17
+script 16      -->  all_up/down_transloc_genes_*.tsv            -->  script 18
 ```
 
 ---
@@ -96,8 +98,8 @@ CONFIG = {
     },
     "lfc_threshold":  1.0,
     "padj_threshold": 0.05,
-    "top_n_labels":   5,
-    "top_n_table":    20,
+    "top_n_labels":   5,    # genes labelled on the plot
+    "top_n_table":    20,   # genes in the top_* TSV tables
     "colors": {"Up": "green", "Down": "red", "No change": "blue"},
     "output_dir": "/path/to/results/volcano_plots",
 }
@@ -112,7 +114,7 @@ python 16_volcano_plots.py
 ### Script 17
 
 Edit the CONFIG section at the top of `17_translocation_volcano_plots.py`.
-The most important setting is `"translocations"`: define each translocation
+The most important setting is `"translocations"` — define each translocation
 as a list of (chromosome, start, end) coordinate tuples. A gene is included
 if it overlaps any of the listed regions:
 
@@ -158,6 +160,10 @@ python 17_translocation_volcano_plots.py
 
 ### Script 16
 
+Script 16 exports **four TSV files per condition** — two capped at
+`top_n_table` rows for quick inspection, and two containing all significant
+DE genes for use in GO enrichment analysis (script 18):
+
 | File | Description |
 |------|-------------|
 | `volcano_WT_vs_T1_highlighted.png` | Volcano plot for T1 with translocated genes highlighted |
@@ -166,6 +172,10 @@ python 17_translocation_volcano_plots.py
 | `top_down_transloc_genes_WT_vs_T1.tsv` | Top 20 downregulated translocated genes in T1 |
 | `top_up_transloc_genes_WT_vs_C1.tsv` | Same for C1 |
 | `top_down_transloc_genes_WT_vs_C1.tsv` | Same for C1 |
+| `all_up_transloc_genes_WT_vs_T1.tsv` | **All** upregulated translocated genes in T1 (no cap), input for script 18 |
+| `all_down_transloc_genes_WT_vs_T1.tsv` | **All** downregulated translocated genes in T1 (no cap), input for script 18 |
+| `all_up_transloc_genes_WT_vs_C1.tsv` | Same for C1 |
+| `all_down_transloc_genes_WT_vs_C1.tsv` | Same for C1 |
 
 ### Script 17
 
@@ -174,10 +184,10 @@ two translocations and two conditions, that is 12 files total:
 
 | File | Description |
 |------|-------------|
-| `verify_volcano_WT_vs_T1_Der17t3_17.png` | Volcano plot for Der(17)t(3;17) in T1 |
-| `verify_volcano_WT_vs_C1_Der17t3_17.png` | Same for C1 |
-| `verify_volcano_WT_vs_T1_Der3t3_17.png` | Volcano plot for Der(3)t(3;17) in T1 |
-| `verify_volcano_WT_vs_C1_Der3t3_17.png` | Same for C1 |
+| `volcano_WT_vs_T1_Der17t3_17.png` | Volcano plot for Der(17)t(3;17) in T1 |
+| `volcano_WT_vs_C1_Der17t3_17.png` | Same for C1 |
+| `volcano_WT_vs_T1_Der3t3_17.png` | Volcano plot for Der(3)t(3;17) in T1 |
+| `volcano_WT_vs_C1_Der3t3_17.png` | Same for C1 |
 | `top_up_Der17t3_17_WT_vs_T1.tsv` | Top 20 upregulated Der(17) genes in T1 |
 | `top_down_Der17t3_17_WT_vs_T1.tsv` | Top 20 downregulated Der(17) genes in T1 |
 | ... | Same pattern for Der(3) and for C1 |
@@ -194,24 +204,24 @@ Each volcano plot shows:
 
 ### Statistical output (script 17 only)
 
-For each translocation × condition, the script prints two Fisher's exact
+For each translocation x condition, the script prints two Fisher's exact
 test results:
 
 ```
 Der(17)t(3;17) | WT vs C1
-  Translocation genes: ....
+  Translocation genes: ...
     Up: ...
-    Down: ....
-    No change: ....
+    Down: ...
+    No change: ...
 
   DE enrichment Fisher test:
     Translocation: DE=..., No change=...
     Genome-wide:   DE=..., No change=...
-    OR=....,  p=....
+    OR=...,  p=...
 
   Up/Down bias Fisher test (among DE genes only):
     Translocation: Up=..., Down=...
-    Genome-wide:   Up=..., Down=...
+    Genome-wide:   Up=...,, Down=...
     OR=...,  p=...
 ```
 
@@ -222,9 +232,19 @@ Der(17)t(3;17) | WT vs C1
 **Why two separate scripts?**
 Script 16 uses the distance table from scripts 01–04 to identify translocated
 genes, and is designed as a quick visualisation companion to that pipeline.
-Script 17 identifies genes directly from genomic coordinates and runs
-statistical tests, making it more suitable for reporting specific translocation
-results. Keeping them separate avoids each script becoming too complex.
+It also exports full gene lists for GO enrichment. Script 17 identifies genes
+directly from genomic coordinates and runs statistical tests, making it more
+suitable for reporting specific translocation results. Keeping them separate
+avoids each script becoming too complex.
+
+**Why export both top-N and all-genes tables in script 16?**
+The top-N tables (top_n_table = 20 by default) are convenient for quick
+inspection and match the genes labelled on the plot. The all-genes tables
+contain every significant DE translocated gene with no cap, which is
+required for GO enrichment analysis (script 18) — GO enrichment needs a
+sufficiently large gene list to detect statistically significant
+overrepresentation after multiple testing correction. Using only 20 genes
+per list is typically too few.
 
 **Why show all genes in grey rather than only translocated genes?**
 The full genome-wide distribution in the background provides essential
@@ -239,7 +259,7 @@ changed ones. A gene with a very large fold change but a high p-value
 by -log10(padj) prioritises the most reproducible signals.
 
 **Why use GTF coordinates in script 17 rather than the distance table?**
-Using genomic coordinates is more transparent, any examiner can verify
+Using genomic coordinates is more transparent — any examiner can verify
 which genes are included by checking the coordinates against the BED files.
 It also allows the two reciprocal derivatives of t(3;17) to be analysed
 independently, which would not be possible with the combined distance table.
@@ -247,13 +267,12 @@ independently, which would not be possible with the combined distance table.
 **Why two Fisher tests in script 17?**
 The DE enrichment test asks whether the overall rate of differential
 expression is elevated. The Up/Down bias test asks, among DE genes, whether
-there is a directional shift toward activation or repression. A more
-specific question that is directly relevant to the compartment adoption
-hypothesis.
+there is a directional shift toward activation or repression — a more
+specific question directly relevant to the compartment adoption hypothesis.
 
 **Handling of missing or zero padj values**
 DESeq2 sometimes outputs NA for padj (when a gene is filtered by independent
 filtering) or exact zeros for extremely significant genes. NA values are
-replaced with 1 (not significant) and zeros are replaced with 1x10^{300} to
+replaced with 1 (not significant) and zeros are replaced with 1x10^{-300} to
 avoid log(0) errors while still placing these genes at the top of the plot.
 
