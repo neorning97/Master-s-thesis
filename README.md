@@ -170,6 +170,17 @@ based on the [chrom3d-nf](https://github.com/robomics/chrom3d-nf) workflow
 by Rossini R. Full setup and configuration instructions are available in
 that repository's README.
 
+The pipeline requires either Docker or Apptainer/Singularity to run
+containers. The following input files from GEO accession
+[GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947)
+must be downloaded and listed in the samplesheet at
+`chrom3d/samplesheets/samplesheet.tsv`:
+
+- Hi-C contact matrices: `GSE246947_hg38_MCF10A_WT_merged.mcool`,
+  `_T1_merged.mcool`, `_C1_merged.mcool`
+- Genomic domain annotations at 50 kb resolution: `*.domains.50000.bed.gz`
+  (one file per condition)
+
 ```bash
 # Install Nextflow
 curl -s https://get.nextflow.io | bash
@@ -181,6 +192,7 @@ nextflow run . \
   --number_of_models 10 \
   -resume \
   -c custom_resources.config
+  -with-apptainer    # or -with-docker
 ```
 
 The pipeline was run on the SAGA HPC cluster (NRIS). A custom resource
