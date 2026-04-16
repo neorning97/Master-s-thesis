@@ -33,9 +33,9 @@ rearrangement.
 ## Dependencies on earlier scripts
 
 ```
-scripts 01–04  -->  T1_distances_agg.tsv, C1_distances_agg.tsv  --
+scripts 01–04  -->  T1_distances_agg.tsv, C1_distances_agg.tsv  -----
                                                                      |-->  script 16
-script 13      -->  DE_WT_vs_T1.tsv, DE_WT_vs_C1.tsv            --
+script 13      -->  DE_WT_vs_T1.tsv, DE_WT_vs_C1.tsv            -----
 ```
 
 ---
