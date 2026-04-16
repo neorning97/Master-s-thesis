@@ -165,9 +165,10 @@ R ≥ 4.1 is required.
 
 ### Chrom3D pipeline
 
-The `chrom3d/` folder contains a Nextflow pipeline for running Chrom3D.
-See the README files inside `chrom3d/subworkflows/nchg/` for the source
-and citation of the NCHG subworkflow.
+The `chrom3d/` folder contains a Nextflow pipeline for running Chrom3D,
+based on the [chrom3d-nf](https://github.com/robomics/chrom3d-nf) workflow
+by Rossini R. Full setup and configuration instructions are available in
+that repository's README.
 
 ```bash
 # Install Nextflow
