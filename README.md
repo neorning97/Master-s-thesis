@@ -113,11 +113,31 @@ running the scripts.
 
 | Dataset | Description | Source |
 |---------|-------------|--------|
-| Hi-C / Chrom3D models | 3D genome structural models for WT, T1, C1 | [GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947) |
-| Subcompartment annotations | 100 kb subcompartment bedGraph (WT, T1, C1) | [GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947) |
-| RNA-seq counts | Raw gene count matrix for MCF10A cell lines | [GSE246689](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246689) |
-| RNA-seq TPM | TPM expression table | [GSE246689](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246689) |
-| Gene annotation | GENCODE GRCh38 protein-coding genes | [GENCODE](https://www.gencodegenes.org/human/release_43.html) |
+| Hi-C contact matrices | Merged .mcool files for WT, T1, C1 (`GSE246947_hg38_MCF10A_WT_merged.mcool`, `_T1_merged.mcool`, `_C1_merged.mcool`) | [GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947) |
+| Genomic domain annotations | 50 kb resolution BED files for Chrom3D modeling (`*.domains.50000.bed.gz`) | [GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947) |
+| Subcompartment annotations | 100 kb resolution bedGraph for compartment analysis (`GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph.gz`) | [GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947) |
+| RNA-seq counts | Raw gene count matrix (`GSE246689_gene_counts.tsv`) | [GSE246689](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246689) |
+| RNA-seq TPM | TPM expression table (`GSE246689_gene_tpm.tsv`) | [GSE246689](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246689) |
+| Gene annotation | Protein-coding gene GTF derived from GENCODE GRCh38.p13. Download the full GTF from [GENCODE]((https://www.gencodegenes.org/human/release_43.html)) and filter to protein-coding genes (see below) | [GENCODE](https://www.gencodegenes.org/human/release_43.html) |
+
+### Generating the protein-coding gene GTF
+
+The file `Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf` used in
+scripts 03, 06, and 17 is not a direct download, it was derived from
+the GENCODE GRCh38.p13 annotation by filtering to protein-coding genes
+only. To reproduce it, download the full annotation and run:
+
+```bash
+# Download the full GENCODE GRCh38.p13 GTF
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.annotation.gtf.gz
+gunzip gencode.v38.annotation.gtf.gz
+
+# Filter to protein-coding genes only
+grep -v "^#" gencode.v38.annotation.gtf \
+  | awk '$3 == "gene"' \
+  | grep 'gene_type "protein_coding"' \
+  > Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf
+```
 
 ---
 
