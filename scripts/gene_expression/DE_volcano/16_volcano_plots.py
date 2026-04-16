@@ -31,8 +31,8 @@ For each condition (T1, C1), the script:
 
 Why highlight translocated genes on a volcano plot?
 ----------------------------------------------------
-Volcano plots are a standard way to communicate DESeq2 results.
-Overlaying the translocated genes in colour immediately
+Volcano plots are a standard way to communicate DESeq2 results to an
+examiner or reader. Overlaying the translocated genes in colour immediately
 shows whether they are concentrated among the most significantly changed
 genes, or whether their expression is largely unchanged despite the
 genomic rearrangement. This is a more intuitive visualisation than tables
@@ -259,12 +259,12 @@ def plot_volcano(
         print(f"    {gene}")
 
     # ── Export ranked gene tables ─────────────────────────────────────────────
-    # Top upregulated: ranked by largest log2FC
+    # Top N upregulated: ranked by largest log2FC (used for plot labels)
     top_up_table = (
         trans_sig[trans_sig["DE_status"] == "Up"]
         .nlargest(top_n_table, "log2FoldChange")
     )
-    # Top downregulated: ranked by most negative log2FC
+    # Top N downregulated: ranked by most negative log2FC
     top_down_table = (
         trans_sig[trans_sig["DE_status"] == "Down"]
         .nsmallest(top_n_table, "log2FoldChange")
@@ -278,6 +278,23 @@ def plot_volcano(
 
     print(f"\n  Exported top {top_n_table} upregulated genes:   {up_path}")
     print(f"  Exported top {top_n_table} downregulated genes: {down_path}")
+
+    # All significant DE translocated genes — no cap on number.
+    # These full lists are used as input to GO enrichment (script 18),
+    # where a larger gene set gives more statistical power.
+    all_up_table   = (trans_sig[trans_sig["DE_status"] == "Up"]
+                      .sort_values("log2FoldChange", ascending=False))
+    all_down_table = (trans_sig[trans_sig["DE_status"] == "Down"]
+                      .sort_values("log2FoldChange", ascending=True))
+
+    all_up_path   = os.path.join(output_dir, f"all_up_transloc_genes_WT_vs_{cond}.tsv")
+    all_down_path = os.path.join(output_dir, f"all_down_transloc_genes_WT_vs_{cond}.tsv")
+
+    all_up_table.to_csv(all_up_path,   sep="\t", index=False)
+    all_down_table.to_csv(all_down_path, sep="\t", index=False)
+
+    print(f"  Exported all {len(all_up_table)} upregulated genes:   {all_up_path}")
+    print(f"  Exported all {len(all_down_table)} downregulated genes: {all_down_path}")
 
 
 # =============================================================================
