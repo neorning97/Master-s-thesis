@@ -174,10 +174,10 @@ two translocations and two conditions, that is 12 files total:
 
 | File | Description |
 |------|-------------|
-| `volcano_WT_vs_T1_Der17t3_17.png` | Volcano plot for Der(17)t(3;17) in T1 |
-| `volcano_WT_vs_C1_Der17t3_17.png` | Same for C1 |
-| `volcano_WT_vs_T1_Der3t3_17.png` | Volcano plot for Der(3)t(3;17) in T1 |
-| `volcano_WT_vs_C1_Der3t3_17.png` | Same for C1 |
+| `verify_volcano_WT_vs_T1_Der17t3_17.png` | Volcano plot for Der(17)t(3;17) in T1 |
+| `verify_volcano_WT_vs_C1_Der17t3_17.png` | Same for C1 |
+| `verify_volcano_WT_vs_T1_Der3t3_17.png` | Volcano plot for Der(3)t(3;17) in T1 |
+| `verify_volcano_WT_vs_C1_Der3t3_17.png` | Same for C1 |
 | `top_up_Der17t3_17_WT_vs_T1.tsv` | Top 20 upregulated Der(17) genes in T1 |
 | `top_down_Der17t3_17_WT_vs_T1.tsv` | Top 20 downregulated Der(17) genes in T1 |
 | ... | Same pattern for Der(3) and for C1 |
