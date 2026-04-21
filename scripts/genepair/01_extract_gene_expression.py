@@ -3,32 +3,15 @@
 ==============================
 Script 1 of 4 for gene pair distance calculations – Gene expression extraction.
 
-What this script does
----------------------
-For each translocated condition (T1 and C1), this script:
-
-1. Reads the BED files that define which genomic regions are translocated
-   and which regions are their neighbors on the receiving chromosome.
-2. Overlaps those regions with a GTF gene annotation to find all genes
-   that fall inside each region.
-3. Samples a matched set of control genes from chromosomes that are NOT
-   involved in the translocation. The control group is the same size as
-   the translocated gene group, making statistical comparisons fair.
+For each condition (T1 and C1), this script:
+1. Reads BED files defining translocated and neighbor regions.
+2. Finds all genes in those regions using a GTF annotation.
+3. Samples matching control genes from uninvolved chromosomes.
 4. Attaches RNA-seq TPM expression values to every gene.
-5. Saves the result as a TSV file, one per condition.
+5. Saves the result as a TSV file.
 
-Output of this script is used by script 02.
-
-Usage
------
-    1. Edit the CONFIG section below to point to your files.
-    2. Run: python 01_extract_gene_expression.py
-
-Dependencies
-------------
-    pandas, bioframe
-    Install with: pip install pandas bioframe
-
+Usage:  Edit the paths below, then run: python 01_extract_gene_expression.py
+Dependencies:  pip install pandas bioframe
 """
 
 import os
@@ -37,246 +20,204 @@ import bioframe
 
 
 # =============================================================================
-# CONFIG – edit all paths here before running
+# CONFIG – edit these paths before running
 # =============================================================================
-CONFIG = {
-    # GTF annotation file (Ensembl protein-coding genes, GRCh38)
-    "gtf_file":  "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf",
 
-    # RNA-seq TPM expression table (GEO accession GSE246689)
-    "expr_file": "/path/to/GSE246689_gene_tpm.tsv",
+#GTF_FILE  = "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf"
+#EXPR_FILE = "/path/to/GSE246689_gene_tpm.tsv"
+#RESULTS_DIR = "/path/to/results"
+GTF_FILE  = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf"
+EXPR_FILE = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/GSE246689_gene_tpm.tsv"
+RESULTS_DIR = "/Users/nadiaorning/Desktop/UiO/Vår2026/results"
 
-    # Per-condition BED files
-    # transloc_bed : regions that were translocated
-    # neighbor_bed : neighboring regions on the receiving chromosome
-    "conditions": {
-        "T1": {
-            "transloc_bed": "/path/to/T1_translocations.bed",
-            "neighbor_bed": "/path/to/T1_neighbor",
-        },
-        "C1": {
-            "transloc_bed": "/path/to/C1_translocations.bed",
-            "neighbor_bed": "/path/to/C1_neighbor.bed",
-        },
+
+
+# Dictionary defining experimental conditions and their input files:
+# - transloc_bed: genomic regions with translocations
+# - neighbor_bed: nearby regions on receiving chromosome
+CONDITIONS = {
+    "T1": {
+        "transloc_bed": "/path/to/T1_translocations.bed",
+        "neighbor_bed": "/path/to/T1_neighbor.bed",
     },
-
-    # Where to save the output TSV files (created automatically)
-    "results_dir": "/path/to/results",
+    "C1": {
+        "transloc_bed": "/path/to/C1_translocations.bed",
+        "neighbor_bed": "/path/to/C1_neighbor.bed",
+    },
 }
-# =============================================================================
-
 
 # =============================================================================
-# Helper functions
+# Load GTF genes
 # =============================================================================
 
-def load_bed(path: str) -> pd.DataFrame:
-    """Read a BED file and ensure correct column types."""
-    df = pd.read_csv(path, sep="\t")
-    df["chrom"] = df["chrom"].astype(str).str.strip()
-    df["start"] = pd.to_numeric(df["start"], errors="coerce").astype(int)
-    df["end"]   = pd.to_numeric(df["end"],   errors="coerce").astype(int)
-    return df
+print("Loading GTF annotation...")
+# Reads GTF file into DataFrame, and keeps only rows describing genes
+gtf = bioframe.read_table(GTF_FILE, schema="gtf")
+gtf = gtf[gtf["feature"] == "gene"].copy()
 
+# GTF uses 1-based coordinates; convert start to 0-based to match BED files
+gtf["start"] -= 1
+gtf["chrom"] = gtf["chrom"].astype(str).str.strip()
 
-def load_gtf_genes(gtf_file: str) -> pd.DataFrame:
-    """
-    Load a GTF annotation file and return one row per gene with columns:
-    chrom, start (0-based), end, gene_id, gene_name, gene_type.
+# Pull gene metadata out of the attributes column using regex
+gtf["gene_id"]   = gtf["attributes"].str.extract(r'gene_id "([^"]+)"')
+gtf["gene_name"] = gtf["attributes"].str.extract(r'gene_name "([^"]+)"')
+gtf["gene_type"] = gtf["attributes"].str.extract(r'gene_type "([^"]+)"')
 
-    GTF files use 1-based inclusive coordinates. We convert the start
-    position to 0-based (BED-style) so coordinates are consistent.
-    """
-    gtf = bioframe.read_table(gtf_file, schema="gtf")
-    gtf = gtf[gtf["feature"] == "gene"].copy()
-
-    # Convert 1-based GTF start to 0-based
-    gtf["start"] -= 1
-    gtf["chrom"]  = gtf["chrom"].astype(str).str.strip()
-
-    # Parse the free-text attributes column to extract gene metadata
-    gtf["gene_id"]   = gtf["attributes"].str.extract(r'gene_id "([^"]+)"')
-    gtf["gene_name"] = gtf["attributes"].str.extract(r'gene_name "([^"]+)"')
-    gtf["gene_type"] = gtf["attributes"].str.extract(r'gene_type "([^"]+)"')
-
-    # Strip Ensembl version suffixes (e.g. ENSG00000001234.5 → ENSG00000001234)
-    # so gene IDs match between the GTF and expression table
-    gtf["gene_id"] = gtf["gene_id"].str.split(".").str[0]
-
-    return gtf
-
-
-def load_expression(expr_file: str) -> pd.DataFrame:
-    """
-    Load the RNA-seq TPM expression table and standardise the gene ID column
-    so it can be merged with the GTF data.
-    """
-    df = pd.read_csv(expr_file, sep="\t")
-
-    # Rename 'gene' → 'gene_id' if necessary
-    if "gene" in df.columns:
-        df.rename(columns={"gene": "gene_id"}, inplace=True)
-
-    # Strip version suffixes to match GTF gene IDs
-    df["gene_id"] = df["gene_id"].astype(str).str.split(".").str[0]
-
-    # Drop gene_name column from expression table to avoid duplicate columns
-    # when merging with the GTF (which already has gene_name)
-    df.drop(columns=[c for c in ["gene_name"] if c in df.columns], inplace=True)
-
-    return df
-
-
-def genes_in_region(gtf: pd.DataFrame, chrom: str, start: int, end: int) -> pd.DataFrame:
-    """
-    Return all genes in the GTF that overlap the genomic region [start, end)
-    on the given chromosome. A gene overlaps if any part of it falls within
-    the region (not just the midpoint).
-    """
-    return gtf[
-        (gtf["chrom"] == chrom) &
-        (gtf["start"]  < end)   &
-        (gtf["end"]    > start)
-    ].copy()
-
-
-def sample_control_genes(
-    gtf: pd.DataFrame,
-    excluded_chroms: set,
-    n: int,
-    seed: int,
-) -> pd.DataFrame:
-    """
-    Draw n random genes from chromosomes NOT involved in the translocation.
-
-    Why controls? We need a baseline to compare against. By sampling the same
-    number of genes as the translocated group, from unrelated chromosomes, we
-    can test whether any distance effects are specific to the translocation or
-    just a general property of the genome.
-
-    The seed is derived deterministically from the translocation ID so results
-    are reproducible across runs.
-    """
-    pool = gtf[~gtf["chrom"].isin(excluded_chroms)]
-    return pool.sample(n=n, random_state=seed).copy()
+# Strip version suffixes (e.g. ENSG00000001234.5 -> ENSG00000001234)
+gtf["gene_id"] = gtf["gene_id"].str.split(".").str[0]
 
 
 # =============================================================================
-# Main function
+# Load expression data
 # =============================================================================
 
-def extract_gene_expression(
-    transloc_bed: str,
-    neighbor_bed: str,
-    gtf_file: str,
-    expr_file: str,
-    output_file: str,
-) -> None:
-    """
-    For one condition, find all genes in translocated and neighboring regions,
-    add matched control genes, attach TPM expression values, and save to TSV.
+print("Loading expression data...")
+expr = pd.read_csv(EXPR_FILE, sep="\t")
 
-    Parameters
-    ----------
-    transloc_bed  : BED file of translocated genomic regions.
-    neighbor_bed  : BED file of neighboring regions on the receiving chr.
-    gtf_file      : GTF annotation file.
-    expr_file     : RNA-seq TPM expression table.
-    output_file   : Where to save the output TSV.
-    """
-    transloc_df = load_bed(transloc_bed)
-    neighbor_df = load_bed(neighbor_bed)
-    gtf_df      = load_gtf_genes(gtf_file)
-    expr_df     = load_expression(expr_file)
+# Checks if there is a gene column, and if there is -> renames to gene_id
+if "gene" in expr.columns:
+    expr = expr.rename(columns={"gene": "gene_id"})
 
+# Convert gene_id to string, if not already, and strip version suffixes
+expr["gene_id"] = expr["gene_id"].astype(str).str.split(".").str[0]
+
+# Drop gene_name if it exists -> we'll get it from the GTF instead
+if "gene_name" in expr.columns:
+    expr = expr.drop(columns=["gene_name"])
+
+
+# =============================================================================
+# Process each condition
+# =============================================================================
+
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+# Loop through each condition (T1, C1)
+for cond, paths in CONDITIONS.items():
+    print(f"\nProcessing condition: {cond}")
+
+    #---------------------------------
+    # Load translocation regions
+    #---------------------------------
+    transloc_df = pd.read_csv(paths["transloc_bed"], sep="\t")
+
+    # Clean and standardize columns
+    transloc_df["chrom"] = transloc_df["chrom"].astype(str).str.strip()
+    transloc_df["start"] = pd.to_numeric(transloc_df["start"], errors="coerce").astype(int)
+    transloc_df["end"]   = pd.to_numeric(transloc_df["end"],   errors="coerce").astype(int)
+
+    #---------------------------------
+    # Load neighboring regions
+    #---------------------------------
+    neighbor_df = pd.read_csv(paths["neighbor_bed"], sep="\t")
+
+    # Clean and standardize columns
+    neighbor_df["chrom"] = neighbor_df["chrom"].astype(str).str.strip() if "chrom" in neighbor_df.columns else None
+    neighbor_df["start"] = pd.to_numeric(neighbor_df["start"], errors="coerce").astype(int)
+    neighbor_df["end"]   = pd.to_numeric(neighbor_df["end"],   errors="coerce").astype(int)
+
+    # Container for all gene hits
     all_genes = []
 
-    # ── Genes inside translocated regions ────────────────────────────────────
+    #-------------------------------------------
+    # Find genes inside translocated regions 
+    #-------------------------------------------
     for _, row in transloc_df.iterrows():
-        hits = genes_in_region(gtf_df, row["chrom"], row["start"], row["end"])
+        # Select genes overlapping this region
+        hits = gtf[
+            (gtf["chrom"] == row["chrom"]) &
+            (gtf["start"] < row["end"]) &
+            (gtf["end"]   > row["start"])
+        ].copy()
+
+        # If any genes overlap, annotate and store them
         if not hits.empty:
-            hits["region_type"]         = "inside_transloc"
+            hits["region_type"] = "inside_transloc"
             hits["translocation_label"] = row["label"]
-            hits["transloc_id"]         = row["transloc_id"]
+            hits["transloc_id"] = row["transloc_id"]
             all_genes.append(hits)
 
-    # ── Genes inside neighboring regions ────────────────────────────────────
-    # The neighbor BED uses 'neighbor_chr' instead of 'chrom' because the
-    # neighbor sits on the receiving chromosome, not the origin chromosome
+    #-------------------------------------------
+    # Find genes in neighboring regions 
+    #-------------------------------------------
+    # Neighbor BED uses 'neighbor_chr' because it's on the receiving chromosome
     for _, row in neighbor_df.iterrows():
-        hits = genes_in_region(gtf_df, row["neighbor_chr"], row["start"], row["end"])
+        hits = gtf[
+            (gtf["chrom"] == row["neighbor_chr"]) &
+            (gtf["start"] < row["end"]) &
+            (gtf["end"]   > row["start"])
+        ].copy()
+
         if not hits.empty:
-            hits["region_type"]         = "neighbor"
+            hits["region_type"] = "neighbor"
             hits["translocation_label"] = row["label"]
-            hits["transloc_id"]         = row["transloc_id"]
+            hits["transloc_id"] = row["transloc_id"]
             all_genes.append(hits)
 
+    # If no genes found at all --> skip condition
     if not all_genes:
-        print(f"  No genes found – skipping {output_file}")
-        return
+        print(f"  No genes found – skipping {cond}")
+        continue
 
+    # Combine all found genes into one DataFrame
     all_genes_df = pd.concat(all_genes, ignore_index=True)
 
-    # ── Control genes (matched by count, from non-translocated chromosomes) ──
+    #-------------------------------------------------------------------------
+    # Sample control genes from chromosomes not involved in the translocation 
+    #-------------------------------------------------------------------------
+    # Identify chromosomes involved in translocations
     trans_chroms = set(transloc_df["chrom"])
+
+    # Control genes = genes NOT on those chromosomes
+    control_pool = gtf[~gtf["chrom"].isin(trans_chroms)]
+
     control_rows = []
 
+    # Loop per translocation ID
     for tid in all_genes_df["transloc_id"].unique():
-        n_trans = (
-            all_genes_df
-            .query("transloc_id == @tid and region_type == 'inside_transloc'")
-            .shape[0]
-        )
+        # Count how many translocated genes this translocation has
+        mask = (all_genes_df["transloc_id"] == tid) & (all_genes_df["region_type"] == "inside_transloc")
+        n_trans = mask.sum()
+
         if n_trans == 0:
             continue
 
-        # Seed derived from translocation ID for reproducibility
-        seed    = abs(hash(tid)) % (2**32)
-        sampled = sample_control_genes(gtf_df, trans_chroms, n=n_trans, seed=seed)
-        sampled["region_type"]         = "control"
-        sampled["transloc_id"]         = tid
+        # Sample same number of control genes (reproducible via seed)
+        seed = abs(hash(tid)) % (2**32)
+        sampled = control_pool.sample(n=n_trans, random_state=seed).copy()
+        sampled["region_type"] = "control"
+        sampled["transloc_id"] = tid
         sampled["translocation_label"] = "control"
+
         control_rows.append(sampled)
 
+    # Add control genes to dataset
     if control_rows:
         all_genes_df = pd.concat([all_genes_df] + control_rows, ignore_index=True)
 
-    # ── Attach TPM expression values ──────────────────────────────────────────
-    merged = all_genes_df.merge(expr_df, on="gene_id", how="left")
+    #-------------------------------------------
+    # Merge gene annotations with expression data 
+    #-------------------------------------------
+    merged = all_genes_df.merge(expr, on="gene_id", how="left")
 
-    # Reorder: gene metadata first, then all MCF10A expression columns
+    # Put gene metadata columns first, then all MCF10A expression columns
     base_cols = [
         "chrom", "start", "end",
         "gene_id", "gene_name", "gene_type",
         "region_type", "translocation_label", "transloc_id",
         "source", "feature", "score", "strand", "frame",
     ]
-    expr_cols = [c for c in merged.columns if c.startswith("MCF10A")]
-    merged    = merged[base_cols + expr_cols]
 
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    # Select expression columns
+    expr_cols = [c for c in merged.columns if c.startswith("MCF10A")]
+    merged = merged[base_cols + expr_cols]
+
+    #-------------------------------------------
+    # Save results 
+    #-------------------------------------------
+    output_file = os.path.join(RESULTS_DIR, f"{cond}_genes_expression.tsv")
     merged.to_csv(output_file, sep="\t", index=False)
     print(f"  Saved: {output_file}")
 
-
-# =============================================================================
-# Run
-# =============================================================================
-
-if __name__ == "__main__":
-    results_dir = CONFIG["results_dir"]
-    os.makedirs(results_dir, exist_ok=True)
-
-    for cond, paths in CONFIG["conditions"].items():
-        print(f"\nProcessing condition: {cond}")
-        extract_gene_expression(
-            transloc_bed=paths["transloc_bed"],
-            neighbor_bed=paths["neighbor_bed"],
-            gtf_file=CONFIG["gtf_file"],
-            expr_file=CONFIG["expr_file"],
-            output_file=os.path.join(results_dir, f"{cond}_genes_expression.tsv"),
-        )
-
-    print("\nDone. Output files:")
-    for cond in CONFIG["conditions"]:
-        print(f"  {results_dir}/{cond}_genes_expression.tsv")
+print("\nDone!")
