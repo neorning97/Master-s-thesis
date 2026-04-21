@@ -114,8 +114,8 @@ and `x`, `y`, `z` coordinates giving its position in 3D space:
 
 ### Step 1 — Edit the CONFIG block in each script
 
-Each script has a `CONFIG` dictionary at the top. Replace all
-`"/path/to/..."` placeholders with the actual paths to your files.
+Each script has a group of variables at the top (marked CONFIG). 
+Replace all `"/path/to/..."` placeholders with the actual paths to your files.
 Output directories are created automatically.
 
 ### Step 2 — Run the scripts in order
@@ -132,7 +132,7 @@ have been saved.
 
 ### Scenario setting (inter vs intra)
 
-Script 02 has a `"scenario"` setting in CONFIG:
+Script 02 has a `"scenario"` variable at the top:
 
 - `"inter"` — keep only gene pairs where the translocated gene and its
   neighbor are on **different chromosomes** (interchromosomal). Use this
