@@ -36,7 +36,7 @@ translocated genes (inside_transloc) vs. matched control genes in:
 
 | Script | What it does | Key input | Key output |
 |--------|-------------|-----------|------------|
-| `05_compute_tc_distance_to_center.py` | Computes distance to nuclear centre for translocated and control genes in T1/C1 models | Gene expression TSV (from script 01), CMM files | `T1_distance_to_center_agg.tsv`, `C1_distance_to_center_agg.tsv` |
+| `05_compute_tc_distance_to_center.py` | Computes distance to nuclear centre for translocated and control genes in T1/C1 models | Gene expression TSV (from script 01), CMM files | `T1_distance_to_center.tsv`, `T1_distance_to_center_agg.tsv`, `C1_distance_to_center.tsv`, `C1_distance_to_center_agg.tsv` |
 | `06_compute_wt_distance_to_center.py` | Computes the same distances in wildtype models (the baseline) | Gene expression TSV (from script 01), GTF, WT CMM files | `WT_distance_to_center_agg.tsv` |
 | `07_plot_distance_to_center.py` | Scatter plots + Wilcoxon tests comparing WT vs T1/C1 radial positions | Output of 05 and 06 | Scatter plots (.png) |
 
@@ -99,10 +99,12 @@ of the gene-pair distance pipeline:
 python 01_extract_gene_expression.py
 ```
 
-### Step 2 — Edit the CONFIG block in each script
+### Step 2 — Edit the CONFIG section in each script
 
-Each script has a `CONFIG` dictionary at the top. Replace all
-`"/path/to/..."` placeholders with the actual paths to your files.
+Each script has a `CONFIG SECTION` near the top with flat top-level variables
+(e.g. `T1_GENE_FILE`, `WT_CMM_FOLDER`, `OUTPUT_FILE`). Replace all
+`"/path/to/..."` placeholders with the actual paths to your files. Output
+directories are created automatically.
 
 ### Step 3 — Run the scripts in order
 
@@ -167,6 +169,4 @@ for each gene group.
 
 **Bead mapping**
 Each gene is mapped to the Chrom3D bead whose genomic midpoint is closest
-to the gene's midpoint on the same chromosome. The bead index is pre-built
-as numpy arrays once per model to avoid slow DataFrame filtering in the inner
-loop.
+to the gene's midpoint on the same chromosome.
