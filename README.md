@@ -16,7 +16,7 @@ The thesis investigates whether chromosomal translocations in breast epithelial 
 
 - **WT**: wildtype MCF10A breast epithelial cells
 - **T1**: premalignant cells
-**C1**: malignant cells
+- **C1**: malignant cells
 
 The analyses cover: spatial distances between translocated genomic regions, radial nuclear positioning of translocated genes, chromatin subcompartment identity, and differential gene expression.
 
