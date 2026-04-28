@@ -71,17 +71,27 @@ Each input file must contain a `gene_name` column with HGNC gene symbols.
 
 ### Step 1 — Edit the CONFIG section
 
+Edit the variables in the `CONFIG SECTION` near the top of
+`18_go_enrichment.R`:
+
 ```r
-INPUT_FILES <- list(
-  T1_up   = "/path/to/all_up_transloc_genes_WT_vs_T1.tsv",
-  T1_down = "/path/to/all_down_transloc_genes_WT_vs_T1.tsv",
-  C1_up   = "/path/to/all_up_transloc_genes_WT_vs_C1.tsv",
-  C1_down = "/path/to/all_down_transloc_genes_WT_vs_C1.tsv"
-)
-OUTPUT_DIR       <- "/path/to/results/go_enrichment"
-TOP_N_CATEGORIES <- 10     # how many GO terms to show in each plot
-GO_ONTOLOGY      <- "BP"   # "BP", "MF", or "CC"
-PADJ_CUTOFF      <- 0.05
+# Input gene lists (from scripts 16 or 17)
+T1_UP_FILE   <- "/path/to/all_up_transloc_genes_WT_vs_T1.tsv"
+T1_DOWN_FILE <- "/path/to/all_down_transloc_genes_WT_vs_T1.tsv"
+C1_UP_FILE   <- "/path/to/all_up_transloc_genes_WT_vs_C1.tsv"
+C1_DOWN_FILE <- "/path/to/all_down_transloc_genes_WT_vs_C1.tsv"
+
+# Output folder for the dot plots
+OUTPUT_DIR <- "/path/to/results/go_enrichment"
+
+# How many top GO terms to show in each plot
+TOP_N_CATEGORIES <- 10
+
+# Which GO ontology to use: "BP", "MF", or "CC"
+GO_ONTOLOGY <- "BP"
+
+# Adjusted p-value cutoff for calling a GO term enriched
+PADJ_CUTOFF <- 0.05
 ```
 
 ### Step 2 — Run
@@ -101,11 +111,11 @@ From RStudio: open the script and click run.
 
 Each row in the dot plot is one GO term. The columns show:
 
-- **x-axis (GeneRatio)** — the fraction of your input genes that belong to
+- **x-axis (GeneRatio)**: the fraction of your input genes that belong to
   this GO term. A higher ratio means more of your genes are involved in
   this process.
-- **Dot size** — the number of input genes in the GO term.
-- **Dot colour** — the adjusted p-value (padj). Darker/more saturated
+- **Dot size**: the number of input genes in the GO term.
+- **Dot colour**: the adjusted p-value (padj). Darker/more saturated
   colour = more significant.
 
 GO terms are ordered by gene ratio by default, so the most represented
@@ -137,7 +147,7 @@ enrichment in transcriptomic studies.
 clusterProfiler's `enrichGO` function requires Entrez IDs rather than
 HGNC gene symbols. The `bitr()` function handles the conversion using
 `org.Hs.eg.db`, the human gene annotation database. A small fraction of
-gene symbols may not map to Entrez IDs — this is normal and those genes
+gene symbols may not map to Entrez IDs, this is normal and those genes
 are silently dropped.
 
 **What is the background gene set?**
