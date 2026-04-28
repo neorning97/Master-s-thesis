@@ -14,9 +14,9 @@ This repository contains all code, BED files, and Chrom3D pipeline files associa
 
 The thesis investigates whether chromosomal translocations in breast epithelial cells alter the spatial organization of the genome in the nucleus, and whether any such changes are reflected in gene expression. Using Hi-C-derived 3D structural models (Chrom3D), subcompartment annotations, and RNA-seq data, the study follows an in vitro model of breast cancer progression across three cell lines:
 
-- **WT** — wildtype MCF10A breast epithelial cells
-- **T1** — premalignant cells
-- **C1** — malignant cells
+- **WT**: wildtype MCF10A breast epithelial cells
+- **T1**: premalignant cells
+**C1**: malignant cells
 
 The analyses cover: spatial distances between translocated genomic regions, radial nuclear positioning of translocated genes, chromatin subcompartment identity, and differential gene expression.
 
@@ -37,20 +37,20 @@ This thesis uses 3D genome models reconstructed from Hi-C data to quantify how t
 ```
 Master-s-thesis/
 |-- scripts/                    All analysis scripts (Python and R)
-|   |-- 3D_models/              Script 08 — chromosome centroid distance
-|   |-- 3D_properties/          Scripts 10–12 — subcompartment classification,
+|   |-- 3D_models/              Script 08: chromosome centroid distance
+|   |-- 3D_properties/          Scripts 10–12: subcompartment classification,
 |   |   |                       tracks, and alluvial plots
 |   |   |-- subcompartment_tracks/   Script 11
 |   |   |-- alluvial/                Script 12
-|   |-- gene_expression/        Scripts 13–18 — differential expression,
+|   |-- gene_expression/        Scripts 13–18: differential expression,
 |   |   |                       GO enrichment, volcano plots
 |   |   |-- DE_enrichment/           Script 15
 |   |   |-- DE_volcano/              Scripts 16 and 17
 |   |   |-- GO_analysis/             Script 18
 |   |   |-- gene_bin_expression/     Scripts 13 and 14
-|   |-- genepair/               Scripts 01–04 — 3D gene-pair distances
-|   |-- radial_chromosome/      Script 09 — nuclear radial positioning
-|   |-- radial_distance/        Scripts 05–07 — distance to nuclear centre
+|   |-- genepair/               Scripts 01–04: 3D gene-pair distances
+|   |-- radial_chromosome/      Script 09: nuclear radial positioning
+|   |-- radial_distance/        Scripts 05–07: distance to nuclear centre
 |
 |-- BED/                        Translocation and neighbor BED files,
 |                               sample metadata (coldata.tsv)
