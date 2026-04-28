@@ -1,233 +1,397 @@
 """
 05_compute_tc_distance_to_center.py
 =====================================
-Script 1 of 3 for nuclear distance analysis – Distance to nuclear centre for
-translocated conditions (T1 and C1).
+This script measures how far translocated genes are from the centre of the
+nucleus, using 3D models of chromosomes (Chrom3D .cmm files).
 
-What this script does
----------------------
-For each translocated condition (T1 and C1), this script asks: after a
-chromosomal translocation, do the translocated genes move closer to or
-further from the centre of the nucleus?
+The idea:
+- The nucleus is modeled as a sphere with its centre at point (0, 0, 0).
+- Each gene has a position in 3D space (x, y, z coordinates).
+- The distance from (0, 0, 0) to the gene's position tells us how close
+  the gene is to the nuclear centre.
+- Genes near the centre are usually "active" (turned on).
+- Genes near the edge are usually "inactive" (turned off).
 
-In Chrom3D polymer models, the nucleus is represented as a sphere centred
-on the origin (0, 0, 0). The Euclidean distance from a gene's bead position
-to the origin is therefore a measure of its radial position in the nucleus —
-genes near the centre tend to be in transcriptionally active compartments,
-while genes near the periphery tend to be in inactive compartments.
+We do this for each .cmm model file we have, then average the results.
 
-For each .cmm structural model this script:
-1. Reads the gene expression TSV produced by script 01 (gene_expression
-   extraction), keeping only translocated and control genes.
-2. Maps each gene to its nearest genomic bead in the model.
-3. Computes the Euclidean distance from that bead to the origin (0, 0, 0).
-4. Saves per-model distances and an aggregated summary (mean, std, n_models).
+Run script 01 first to make the gene expression files.
+Then edit the file paths below and run this script.
 
-Why only inside_transloc and control?
---------------------------------------
-neighbor genes are excluded because the radial repositioning hypothesis
-is specifically about whether the translocated genes themselves move toward
-or away from the nuclear centre after the translocation — not about what
-happens to the genes they land near.
-
-Output of this script is used by script 07.
-
-Usage
------
-    1. Run script 01 (01_extract_gene_expression.py) first.
-    2. Edit the CONFIG section below to point to your files.
-    3. Run: python 05_compute_tc_distance_to_center.py
-
-Dependencies
-------------
-    pandas, numpy
-    Install with: pip install pandas numpy
-
+Required libraries: pandas, numpy
+Install them with: pip install pandas numpy
 """
 
-import os
-import re
-import glob
-
-import numpy as np
-import pandas as pd
-
+import os       
+import re       
+import glob     
+import numpy as np   
+import pandas as pd  
 
 # =============================================================================
-# CONFIG – edit all paths here before running
+# CONFIG SECTION - Edit these file paths before running the script
 # =============================================================================
-CONFIG = {
-    "conditions": {
-        "T1": {
-            # Gene expression TSV from script 01
-            "gene_expression_file": "/path/to/T1_genes_expression.tsv",
-            # Directory of Chrom3D .cmm structural model files for T1
-            "cmm_dir":              "/path/to/cmm/T1",
-            # Where to save the per-model distances (one row per gene per model)
-            "output":               "/path/to/T1_distance_to_center.tsv",
-            # Where to save the aggregated summary (mean/std across all models)
-            "output_agg":           "/path/to/T1_distance_to_center_agg.tsv",
-        },
-        "C1": {
-            "gene_expression_file": "/path/to/C1_genes_expression.tsv",
-            "cmm_dir":              "/path/to/cmm/C1",
-            "output":               "/path/to/C1_distance_to_center.tsv",
-            "output_agg":           "/path/to/C1_distance_to_center_agg.tsv",
-        },
+# I'm putting all my settings in one dictionary at the top so I can easily
+# change them later without digging through the code.
+
+# T1 settings - paths for the T1 condition
+T1_GENE_FILE = "/path/to/T1_genes_expression.tsv"   # input from script 01
+T1_CMM_FOLDER = "/path/to/cmm/T1"                   # folder with .cmm files
+T1_OUTPUT = "/path/to/T1_distance_to_center.tsv"    # main output file
+T1_OUTPUT_AVG = "/path/to/T1_distance_to_center_agg.tsv"  # averaged output
+
+# C1 settings - paths for the C1 condition
+C1_GENE_FILE = "/path/to/C1_genes_expression.tsv"
+C1_CMM_FOLDER = "/path/to/cmm/C1"
+C1_OUTPUT = "/path/to/C1_distance_to_center.tsv"
+C1_OUTPUT_AVG = "/path/to/C1_distance_to_center_agg.tsv"
+
+# Now I'll put all of this into a list so I can loop through both conditions
+# Each item in the list is a dictionary with the settings for one condition
+conditions_list = [
+    {
+        "name": "T1",
+        "gene_file": T1_GENE_FILE,
+        "cmm_folder": T1_CMM_FOLDER,
+        "output": T1_OUTPUT,
+        "output_avg": T1_OUTPUT_AVG,
     },
-}
-# =============================================================================
+    {
+        "name": "C1",
+        "gene_file": C1_GENE_FILE,
+        "cmm_folder": C1_CMM_FOLDER,
+        "output": C1_OUTPUT,
+        "output_avg": C1_OUTPUT_AVG,
+    },
+]
 
 
 # =============================================================================
-# Helper functions
+# Helper function: Read a .cmm file and pull out the bead positions
 # =============================================================================
+# A .cmm file is a text file with information about "beads". Each bead
+# represents a small piece of a chromosome at a specific 3D position.
+# We need to extract: which chromosome, where on the chromosome (start/end),
+# and the 3D coordinates (x, y, z).
 
-def parse_cmm(file_path: str) -> pd.DataFrame:
+def read_cmm_file(file_path):
     """
-    Parse a UCSF Chimera / Chrom3D .cmm marker file and return a DataFrame
-    with columns: chr, start, end, x, y, z.
-
-    Each <marker> line with a beadID of the form 'chrN:start-end' represents
-    one genomic bead positioned at (x, y, z) in 3D space. <link> elements
-    and all other attributes are ignored.
+    Open a .cmm file and read out all the bead information.
+    Returns a pandas DataFrame (a table) with columns:
+    chr, start, end, x, y, z
     """
-    markers = []
-    with open(file_path) as fh:
-        for line in fh:
+    # Make an empty list to store the bead info as we find it
+    bead_list = []
+
+    # Open the file for reading
+    # Using "with open" makes sure the file is closed automatically when done
+    with open(file_path) as my_file:
+
+        # Loop through the file one line at a time
+        for line in my_file:
+
+            # We only care about lines that contain "<marker"
+            # If a line doesn't have this, skip to the next line
             if "<marker" not in line:
                 continue
-            attrs = dict(re.findall(r'(\w+)="([^"]+)"', line))
+
+            # Each marker line has attributes like beadID="chr1:1000-2000" x="1.5" y="2.0" z="3.0"
+            # Use a regular expression to find all attribute="value" pairs
+            # The result is a list of pairs like [("beadID", "chr1:1000-2000"), ("x", "1.5"), ...]
+            # Then we turn that list into a dictionary for easier access
+            found_attrs = re.findall(r'(\w+)="([^"]+)"', line)
+            attrs = dict(found_attrs)
+
+            # If this marker doesn't have a beadID, we can't use it --> skip it
             if "beadID" not in attrs:
                 continue
+
+            # Now try to extract the info we want
+            # Use try/except in case something is malformed in the file
             try:
-                chrom_part, coords = attrs["beadID"].split(":")
+                # The beadID looks like "chr1:1000-2000"
+                # Split on the colon to get "chr1" and "1000-2000"
+                bead_id = attrs["beadID"]
+                chrom_part, coords_part = bead_id.split(":")
+
+                # Make sure the chromosome name starts with "chr"
+                # (sometimes it might just be "1" instead of "chr1")
                 if not chrom_part.startswith("chr"):
                     chrom_part = "chr" + chrom_part
-                start, end = map(int, coords.split("-"))
+
+                # Split "1000-2000" into start=1000 and end=2000
+                # Then convert them from text to integers
+                start_str, end_str = coords_part.split("-")
+                start = int(start_str)
+                end = int(end_str)
+
+                # Get the x, y, z coordinates and convert them to numbers (floats)
+                # If they're missing for some reason, use "nan"
                 x = float(attrs.get("x", "nan"))
                 y = float(attrs.get("y", "nan"))
                 z = float(attrs.get("z", "nan"))
-                markers.append([chrom_part, start, end, x, y, z])
+
+                # Add this bead's info to our list
+                bead_list.append([chrom_part, start, end, x, y, z])
+
             except Exception:
-                continue  # skip malformed lines silently
+                # If anything went wrong with this line, just skip it
+                # and keep going with the rest of the file
+                continue
 
-    return pd.DataFrame(markers, columns=["chr", "start", "end", "x", "y", "z"])
-
-
-def build_bead_index(beads_by_chr: dict) -> dict:
-    """
-    Pre-convert each chromosome's bead DataFrame into numpy arrays for fast
-    nearest-bead lookup.
-
-    For each gene we need to find the closest bead by genomic midpoint.
-    Pre-extracting midpoints and coordinates as numpy arrays (once per model)
-    avoids slow and memory-heavy DataFrame filtering inside the gene loop.
-
-    Returns a dict: chromosome → {'mids': array, 'coords': array}
-    """
-    index = {}
-    for chrom, bdf in beads_by_chr.items():
-        index[chrom] = {
-            "mids":   ((bdf["start"] + bdf["end"]) / 2).to_numpy(),
-            "coords": bdf[["x", "y", "z"]].to_numpy(),
-        }
-    return index
-
-
-def map_genes_to_beads(genes_df: pd.DataFrame, bead_index: dict) -> np.ndarray:
-    """
-    For each gene, find the nearest bead on the same chromosome (by midpoint)
-    and return its 3D coordinates.
-
-    Returns
-    -------
-    coords : (N, 3) float array – x, y, z of the matched bead (NaN if none found)
-    """
-    n      = len(genes_df)
-    coords = np.full((n, 3), np.nan)
-
-    for i, (_, row) in enumerate(genes_df.iterrows()):
-        entry = bead_index.get(row["chrom"])
-        if entry is None:
-            continue
-        gene_mid  = (row["start"] + row["end"]) / 2
-        nearest   = np.abs(entry["mids"] - gene_mid).argmin()
-        coords[i] = entry["coords"][nearest]
-
-    return coords
-
-
-# =============================================================================
-# Main loop over conditions
-# =============================================================================
-
-for cond, paths in CONFIG["conditions"].items():
-    print(f"\n===== Processing {cond} =====")
-
-    genes = pd.read_csv(paths["gene_expression_file"], sep="\t")
-
-    # Ensure consistent chromosome notation
-    genes["chrom"] = genes["chrom"].astype(str).apply(
-        lambda x: x if x.startswith("chr") else "chr" + x
+    # Now turn our list of beads into a pandas DataFrame (a table)
+    # Each inner list becomes a row, and we name the columns
+    beads_df = pd.DataFrame(
+        bead_list,
+        columns=["chr", "start", "end", "x", "y", "z"]
     )
 
-    # Keep only translocated and control genes.
-    # neighbor genes are excluded because the question here is about radial
-    # repositioning of the translocated genes themselves.
-    genes = genes[genes["region_type"].isin(["inside_transloc", "control"])].copy()
-    print(f"Loaded {len(genes)} genes (inside_transloc + control)")
+    return beads_df
 
-    cmm_files = sorted(glob.glob(os.path.join(paths["cmm_dir"], "*.cmm")))
-    print(f"Found {len(cmm_files)} CMM files to process")
 
-    all_results = []
+# =============================================================================
+# Helper function: Find the closest bead to each gene
+# =============================================================================
+# Each gene has a position on a chromosome (a start and end).
+# Each bead also has a position on a chromosome.
+# For each gene, we want to find the bead that is closest to it
+# (on the same chromosome) and get that bead's 3D coordinates.
 
+def find_bead_coords_for_genes(genes_df, beads_df):
+    """
+    For each gene in genes_df, find the closest bead on the same chromosome
+    in beads_df, and return the (x, y, z) coordinates of that bead.
+
+    Returns a numpy array with shape (number_of_genes, 3).
+    Each row is the [x, y, z] of the bead closest to that gene.
+    """
+    n_genes = len(genes_df)
+
+    # Make an empty array to hold the results
+    # It has n_genes rows and 3 columns (for x, y, z)
+    # We fill it with "nan" so any genes we can't match will stay as nan
+    coords_array = np.full((n_genes, 3), np.nan)
+
+    # Loop through each gene one at a time
+    # enumerate gives us both the index (i) and the row data
+    # iterrows() gives us each row of the DataFrame
+    for i, (_, gene_row) in enumerate(genes_df.iterrows()):
+
+        # Which chromosome is this gene on?
+        gene_chrom = gene_row["chrom"]
+
+        # Get only the beads that are on the same chromosome as this gene
+        # This is like filtering: keep only rows where chr matches
+        beads_on_same_chr = beads_df[beads_df["chr"] == gene_chrom]
+
+        # If there are no beads on this chromosome, we can't match the gene
+        # Just skip it (the row will stay as nan)
+        if len(beads_on_same_chr) == 0:
+            continue
+
+        # Calculate the midpoint of the gene (average of start and end)
+        gene_midpoint = (gene_row["start"] + gene_row["end"]) / 2
+
+        # Calculate the midpoint of each bead
+        bead_midpoints = (beads_on_same_chr["start"] + beads_on_same_chr["end"]) / 2
+
+        # For each bead, find how far its midpoint is from the gene's midpoint
+        # We use abs() to get the absolute distance (no negative numbers)
+        distances = abs(bead_midpoints - gene_midpoint)
+
+        # Find which bead has the smallest distance (the closest one)
+        # idxmin() gives us the index/row label of the minimum value
+        closest_bead_index = distances.idxmin()
+
+        # Look up that bead's x, y, z coordinates
+        closest_bead = beads_on_same_chr.loc[closest_bead_index]
+        x = closest_bead["x"]
+        y = closest_bead["y"]
+        z = closest_bead["z"]
+
+        # Store these coordinates in our results array
+        coords_array[i] = [x, y, z]
+
+    return coords_array
+
+
+# =============================================================================
+# Main code
+# =============================================================================
+
+# Loop through each condition (T1 and C1) and process them one by one
+for condition in conditions_list:
+
+    # Get the name and paths for this condition
+    cond_name = condition["name"]
+    gene_file = condition["gene_file"]
+    cmm_folder = condition["cmm_folder"]
+    output_file = condition["output"]
+    output_avg_file = condition["output_avg"]
+
+    print("")
+    print("===== Processing " + cond_name + " =====")
+
+    # -------------------------------------------------------------------------
+    # Step 1: Load the gene expression file (made by script 01)
+    # -------------------------------------------------------------------------
+    # This file is tab-separated
+    genes = pd.read_csv(gene_file, sep="\t")
+
+    # Make sure all chromosome names start with "chr"
+    # We do this by going through each value in the chrom column
+    # and adding "chr" if it's missing
+    # First, make sure the column is text (string)
+    genes["chrom"] = genes["chrom"].astype(str)
+
+    # Now go through each value and fix it if needed
+    # We use a list comprehension here, it's like a one-line for loop
+    fixed_chroms = []
+    for c in genes["chrom"]:
+        if c.startswith("chr"):
+            fixed_chroms.append(c)
+        else:
+            fixed_chroms.append("chr" + c)
+    genes["chrom"] = fixed_chroms
+
+    # -------------------------------------------------------------------------
+    # Step 2: Filter to keep only the genes we care about
+    # -------------------------------------------------------------------------
+    # We only want translocated genes ("inside_transloc") and controls ("control").
+    # We don't want the "neighbor" genes because we're asking about
+    # the translocated genes themselves moving in the nucleus.
+    # The .isin() function checks if each value is in our list of allowed values.
+    keep_these = ["inside_transloc", "control"]
+    genes = genes[genes["region_type"].isin(keep_these)]
+
+    # .copy() makes a fresh copy so pandas doesn't give us warnings later
+    # .reset_index(drop=True) renumbers the rows from 0, 1, 2, ... again.
+    # When we filtered above, pandas kept the OLD row numbers (so they have
+    # gaps now, like 2, 5, 7, 12...). If we don't reset them, when we later
+    # try to add the "distances" numpy array as a new column, pandas can
+    # get confused about which gene each distance belongs to and give us
+    # NaN values or wrong matches.
+    genes = genes.copy().reset_index(drop=True)
+
+    print("Loaded " + str(len(genes)) + " genes (inside_transloc + control)")
+
+    # -------------------------------------------------------------------------
+    # Step 3: Find all the .cmm model files in the folder
+    # -------------------------------------------------------------------------
+    # glob.glob finds files matching a pattern, we want all .cmm files
+    # os.path.join builds the path correctly (handles / vs. \ for different OSes)
+    # sorted() puts them in alphabetical order
+    search_pattern = os.path.join(cmm_folder, "*.cmm")
+    cmm_files = sorted(glob.glob(search_pattern))
+
+    print("Found " + str(len(cmm_files)) + " CMM files to process")
+
+    # -------------------------------------------------------------------------
+    # Step 4: Process each .cmm file (each is a different 3D model)
+    # -------------------------------------------------------------------------
+    # We'll keep all the results from each file in this list,
+    # then combine them at the end
+    all_results_list = []
+
+    # Loop through each .cmm file
     for f in cmm_files:
-        print(f"  Processing model: {os.path.basename(f)}")
-        beads = parse_cmm(f)
+
+        # os.path.basename gets just the filename (not the full path)
+        # for cleaner printing
+        file_name = os.path.basename(f)
+        print("  Processing model: " + file_name)
+
+        # Read the .cmm file using our helper function
+        beads = read_cmm_file(f)
+
+        # If the file had no beads, skip it
         if beads.empty:
             print("    No markers found, skipping")
             continue
 
-        # Build numpy bead index and free the raw DataFrame
-        beads_by_chr = {c: b for c, b in beads.groupby("chr")}
-        bead_index   = build_bead_index(beads_by_chr)
-        del beads, beads_by_chr
+        # For each gene, find the closest bead and get its 3D coordinates
+        coords = find_bead_coords_for_genes(genes, beads)
 
-        # Map each gene to its nearest bead in this model
-        coords = map_genes_to_beads(genes, bead_index)
-        del bead_index
-
-        # Euclidean distance from each bead to the nuclear centre (0, 0, 0).
-        # In Chrom3D models the nucleus is a unit sphere centred on the origin,
-        # so this distance is a direct measure of radial nuclear position.
+        # ---------------------------------------------------------------------
+        # Calculate the distance from each bead to the centre (0, 0, 0)
+        # ---------------------------------------------------------------------
+        # The Euclidean distance from (x, y, z) to (0, 0, 0) is:
+        #     sqrt(x^2 + y^2 + z^2)
+        # numpy has a function np.linalg.norm that does this for us.
+        # axis=1 means "calculate one distance for each row".
         distances = np.linalg.norm(coords, axis=1)
 
-        tmp = genes[["gene_id", "gene_name", "chrom",
-                     "region_type", "transloc_id"]].copy()
-        tmp["distance_to_center"] = distances
-        tmp["model"]              = os.path.basename(f)
-        all_results.append(tmp)
+        # ---------------------------------------------------------------------
+        # Build a results table for this model
+        # ---------------------------------------------------------------------
+        # We want to keep some info from the genes table plus our new distance.
+        # First, copy the columns we want to keep.
+        # We also reset_index here so the row numbers are 0, 1, 2, ... which
+        # matches the positions in the "distances" numpy array below.
+        keep_cols = ["gene_id", "gene_name", "chrom", "region_type", "transloc_id"]
+        result_for_this_model = genes[keep_cols].copy().reset_index(drop=True)
 
-    if not all_results:
+        # Add the distance column
+        result_for_this_model["distance_to_center"] = distances
+
+        # Add a column that says which model this came from
+        result_for_this_model["model"] = file_name
+
+        # Add this table to our list of results
+        all_results_list.append(result_for_this_model)
+
+    # -------------------------------------------------------------------------
+    # Step 5: Check if we got any results, and if not, skip to next condition
+    # -------------------------------------------------------------------------
+    if len(all_results_list) == 0:
         print("  No results — skipping.")
         continue
 
-    df = pd.concat(all_results, ignore_index=True)
+    # -------------------------------------------------------------------------
+    # Step 6: Combine all the per-model results into one big table
+    # -------------------------------------------------------------------------
+    # pd.concat sticks all the DataFrames together, one on top of another
+    # ignore_index=True gives us fresh row numbers (instead of duplicates)
+    big_results_df = pd.concat(all_results_list, ignore_index=True)
 
-    os.makedirs(os.path.dirname(paths["output"]), exist_ok=True)
-    df.to_csv(paths["output"], sep="\t", index=False)
-    print(f"  Saved per-model distances: {paths['output']}")
+    # -------------------------------------------------------------------------
+    # Step 7: Save the per-model results to a TSV file
+    # -------------------------------------------------------------------------
+    # Make sure the output folder exists. exist_ok=True means
+    # "don't crash if the folder already exists".
+    output_folder = os.path.dirname(output_file)
+    os.makedirs(output_folder, exist_ok=True)
 
-    # Aggregate across all models: one row per gene
-    df_agg = (
-        df.groupby(
-            ["gene_name", "chrom", "region_type", "transloc_id"],
-            as_index=False,
-        )["distance_to_center"]
-        .agg(mean_distance="mean", std_distance="std", n_models="count")
+    # Save as a tab-separated file (sep="\t")
+    # index=False means don't write the row numbers as a column
+    big_results_df.to_csv(output_file, sep="\t", index=False)
+    print("  Saved per-model distances: " + output_file)
+
+    # -------------------------------------------------------------------------
+    # Step 8: Calculate average distance for each gene across all models
+    # -------------------------------------------------------------------------
+    # Each gene appears once per model, so we have many distance values per gene.
+    # We want to average them, also get the standard deviation, and count
+    # how many models we used.
+    #
+    # groupby groups rows together that have the same values in the listed columns.
+    # Then we tell it which column to do calculations on (distance_to_center)
+    # and what calculations to do (mean, std, count).
+    group_cols = ["gene_name", "chrom", "region_type", "transloc_id"]
+
+    grouped = big_results_df.groupby(group_cols, as_index=False)
+
+    # Calculate stats on the distance_to_center column
+    # The named arguments (mean_distance=...) become the new column names
+    averaged_df = grouped["distance_to_center"].agg(
+        mean_distance="mean",   # average distance across models
+        std_distance="std",     # standard deviation (how spread out the values are)
+        n_models="count"        # how many models we had data from
     )
 
-    df_agg.to_csv(paths["output_agg"], sep="\t", index=False)
-    print(f"  Saved aggregated distances: {paths['output_agg']}")
+    # Save the averaged table to a file
+    averaged_df.to_csv(output_avg_file, sep="\t", index=False)
+    print("  Saved aggregated distances: " + output_avg_file)
+
+# When the loop is done, we've processed both conditions and we're finished
+print("")
+print("Done!")
