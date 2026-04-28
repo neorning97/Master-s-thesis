@@ -1,7 +1,7 @@
 # Subcompartment Alluvial Plots
 
 R script for visualising chromatin subcompartment transitions across
-WT -> T1 -> C1 (or WT -> C1 for t(2;10)) as alluvial diagrams.
+WT --> T1 --> C1 (or WT --> C1 for t(2;10)) as alluvial diagrams.
 
 Two types of plot are produced for each translocation: one per individual
 genomic segment (fragment or body), and one combining both segments of the
@@ -21,7 +21,7 @@ An alluvial diagram makes transitions explicit. Each vertical block (stratum)
 represents one subcompartment state in one condition. The ribbons connecting
 strata show how bins flow between states. The width of each ribbon is
 proportional to the number of 100 kb bins following that particular transition
-path across WT -> T1 -> C1.
+path across WT --> T1 --> C1.
 
 ---
 
@@ -59,8 +59,8 @@ path across WT -> T1 -> C1.
 
 t(2;10) only appears in C1, not in T1. Plotting T1 for t(2;10) coordinates
 would show the unaffected genome at those positions, which would be
-misleading — so T1 is excluded. This is controlled by the
-`WJCT_ONLY_CONDITIONS` CONFIG setting.
+misleading, so T1 is excluded. This is controlled by the
+`WT_C1_ONLY` setting in the CONFIG section.
 
 Segments that appear in both the T1 and C1 BED files (e.g. the shared
 t(3;17) and t(6;19) regions) are only plotted once.
@@ -102,7 +102,7 @@ The `label` column values must match the keys in `LABEL_NAMES` in CONFIG.
 
 Tab-separated with one row per 100 kb bin. Must include columns
 `MCF10A_WT.state`, `MCF10A_T1.state`, and `MCF10A_C1.state` containing
-subcompartment labels such as A1, A2, B1, B2, B3.
+subcompartment labels such as A0, A1, A2, A3, B0, B1, B2, B3.
 
 ---
 
@@ -110,25 +110,53 @@ subcompartment labels such as A1, A2, B1, B2, B3.
 
 ### Step 1 — Edit the CONFIG section
 
-Open `12_subcompartment_alluvial.R` and edit the variables at the top:
+Open `12_subcompartment_alluvial.R` and edit the variables in the
+`CONFIG SECTION` near the top of the script:
 
 ```r
-INPUT_FILE    <- "/path/to/subcompartments.bedGraph"
-TRANSLOC_BEDS <- list(
-  T1 = "/path/to/verify_T1_translocations.bed",
-  C1 = "/path/to/verify_C1_translocations.bed"
+# Subcompartment file
+INPUT_FILE <- "/path/to/subcompartments.bedGraph"
+
+# BED files for translocations, one for each condition
+T1_BED <- "/path/to/verify_T1_translocations.bed"
+C1_BED <- "/path/to/verify_C1_translocations.bed"
+
+# Maps from "label" column in the BED files to readable segment names
+LABEL_NAMES <- c(
+  "T1_transloc_1"         = "chr3 fragment – Der(17)t(3;17)",
+  "T1_transloc_1_partner" = "chr17 body – Der(17)t(3;17)",
+  ...
 )
+
+# Maps from transloc_id to readable translocation name
+T1_NAME_MAP <- c(
+  "T1" = "Der(17)t(3;17)",
+  "T2" = "Der(3)t(3;17)",
+  "T3" = "t(6;19)"
+)
+C1_NAME_MAP <- c(
+  "T1" = "t(2;10)",
+  "T2" = "Der(17)t(3;17)",
+  "T3" = "Der(3)t(3;17)",
+  "T4" = "t(6;19)"
+)
+
+# Translocations to plot for WT and C1 only (skipping T1)
+WT_C1_ONLY <- c("t(2;10)")
+
+# Output folder
 OUTPUT_DIR <- "/path/to/results/subcompartment_alluvial"
 ```
 
-Also check:
-- **`LABEL_NAMES`** — maps each `label` value in the BED files to a
+Things to check before running:
+- **`LABEL_NAMES`**: maps each `label` value in the BED files to a
   human-readable segment name used in plot titles and filenames. Update
   if your BED files use different label values.
-- **`TRANSLOC_NAME_MAPS`** — maps each `transloc_id` to a whole-translocation
-  name (e.g. `"T1"` -> `"Der(17)t(3;17)"`). Must match your BED file.
-- **`WJCT_ONLY_CONDITIONS`** — lists translocation names that should only be
-  plotted for WT and C1. Currently set to `c("t(2;10)")`.
+- **`T1_NAME_MAP` / `C1_NAME_MAP`**: map each `transloc_id` to a
+  whole-translocation name (e.g. `"T1"` --> `"Der(17)t(3;17)"`). Must
+  match the `transloc_id` column in your BED files.
+- **`WT_C1_ONLY`**: lists translocation names that should only be plotted
+  for WT and C1. Currently set to `c("t(2;10)")`.
 
 ### Step 2 — Run
 
@@ -169,9 +197,9 @@ All files are saved to `OUTPUT_DIR`.
 | `alluvial_t_2_10_whole_translocation.jpeg` | t(2;10) (WT + C1) |
 
 Each plot shows:
-- **Strata** coloured by subcompartment state — red shades for A-compartment
-  (A0 = light pink -> A3 = dark red), blue shades for B-compartment
-  (B0 = light blue -> B3 = dark navy)
+- **Strata** coloured by subcompartment state, red shades for A-compartment
+  (A0 = light pink --> A3 = dark red), blue shades for B-compartment
+  (B0 = light blue --> B3 = dark navy)
 - **Ribbons** showing how bins transition between states across conditions,
   scaled by the number of bins following each path
 - **Reversed y-axis** so A-compartment (active) appears at the top
@@ -195,11 +223,11 @@ both chromosome regions are then pooled before counting transitions.
 **Why is t(2;10) plotted for WT and C1 only?**
 The t(2;10) translocation does not occur in T1. Including T1 would show the
 unaffected genome at those coordinates, which would be misleading. The
-`WJCT_ONLY_CONDITIONS` setting lists translocation names that should use a
-two-axis (WT + C1) plot. The check uses `fixed()` string matching rather
-than a regex pattern, because the parentheses in `"t(2;10)"` would otherwise
-be interpreted as regex capture groups, causing the match to silently fail.
+`WT_C1_ONLY` setting lists translocation names that should use a two-axis
+(WT + C1) plot. The check uses `fixed()` string matching rather than a regex
+pattern, because the parentheses in `"t(2;10)"` would otherwise be
+interpreted as regex capture groups, causing the match to silently fail.
 
 **Colour scheme**
 Matches scripts 10 and 11: A-compartment in shades of red, B-compartment
-in shades of blue. Any state not in the palette appears in grey.
+in shades of blue. Any state not in the palette appears in gray.
