@@ -92,31 +92,27 @@ start/end positions, `<link>` elements, and all other attributes are ignored.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG block
+### Step 1 — Edit the CONFIG section
 
-Open `08_chromosome_centroid_distance.py` and edit the `CONFIG` dictionary
-at the top:
+Open `08_chromosome_centroid_distance.py` and edit the variables in the
+`CONFIG SECTION` near the top of the script:
 
 ```python
-CONFIG = {
-    # The two chromosomes to compare — set to the chromosomes involved
-    # in the translocation you are studying
-    "chr_A": "chr3",
-    "chr_B": "chr17",
+# The two chromosomes to compare — set to the chromosomes involved
+# in the translocation you are studying
+CHR_A = "chr3"
+CHR_B = "chr17"
 
-    # Directories containing .cmm files for each condition
-    "cmm_dirs": {
-        "WT": "/path/to/cmm/WT",
-        "T1": "/path/to/cmm/T1",
-        "C1": "/path/to/cmm/C1",
-    },
+# Folders containing .cmm files for each condition
+WT_FOLDER = "/path/to/cmm/WT"
+T1_FOLDER = "/path/to/cmm/T1"
+C1_FOLDER = "/path/to/cmm/C1"
 
-    # Where to save the output plot
-    "output_dir": "/path/to/results/chromosome_centroid_distance",
-}
+# Where to save the output plot
+OUTPUT_FOLDER = "/path/to/results/chromosome_centroid_distance"
 ```
 
-To analyse a different chromosome pair, simply change `chr_A` and `chr_B`.
+To analyse a different chromosome pair, simply change `CHR_A` and `CHR_B`.
 
 ### Step 2 — Run the script
 
@@ -157,11 +153,15 @@ the nucleus, averaged across all its beads. Minimum bead-to-bead distances
 would be noisier and more sensitive to individual bead positions at the
 chromosome ends.
 
-**Why Mann-Whitney U instead of a t-test?**
+**Why Mann-Whitney U instead of a t-test or Wilcoxon?**
 The distribution of centroid distances across structural models is not
-assumed to be normally distributed. The Mann-Whitney U test is a
-non-parametric alternative that tests whether one condition tends to produce
-systematically larger or smaller distances than another, without assuming a
+assumed to be normally distributed, which rules out a t-test. Wilcoxon
+signed-rank would also be inappropriate because it requires *paired* data,
+and there is no natural pairing between an individual WT model and an
+individual T1 or C1 model, they are independent structural ensembles. The
+Mann-Whitney U test is the correct non-parametric choice for comparing two
+unpaired groups, testing whether one condition tends to produce
+systematically larger or smaller distances than another without assuming a
 particular distribution shape.
 
 **Why are some models skipped?**
