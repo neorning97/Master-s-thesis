@@ -31,7 +31,7 @@ disk so the next script can read it as input.
 | Script | What it does | Key input | Key output |
 |--------|-------------|-----------|------------|
 | `01_extract_gene_expression.py` | Finds genes in translocated and neighboring regions, samples matched control genes, attaches RNA-seq TPM expression | Translocation BED, neighbor BED, GTF, TPM table | `T1_genes_expression.tsv`, `C1_genes_expression.tsv` |
-| `02_compute_tc_distances.py` | Computes 3D gene-pair distances in T1 and C1 structural models | Output of 01, neighbor BED, CMM files | `T1_distances_agg.tsv`, `C1_distances_agg.tsv` |
+| `02_compute_tc_distances.py` | Computes 3D gene-pair distances in T1 and C1 structural models | Output of 01, neighbor BED, CMM files | `T1_distances.tsv`, `T1_distances_agg.tsv`, `C1_distances.tsv`, `C1_distances_agg.tsv` |
 | `03_compute_wt_distances.py` | Computes the same distances in wildtype models (the baseline) | Output of 02, GTF, WT CMM files | `WT_distances_agg.tsv` |
 | `04_plot_results.py` | Scatter plots + Wilcoxon signed-rank tests comparing WT vs T1/C1 | Output of 02 and 03 | Scatter plots (.png) |
 
@@ -93,7 +93,7 @@ Standard UCSF Chimera / Chrom3D marker file. The file contains `<marker>`
 elements (one per genomic bead) connected by `<link>` elements (representing
 the polymer chain). Only `<marker>` elements are used by these scripts;
 `<link>` elements are ignored.
- 
+
 Each `<marker>` must have a `beadID` attribute in the format `chrN:start-end`
 and `x`, `y`, `z` coordinates giving its position in 3D space:
 
@@ -112,11 +112,12 @@ and `x`, `y`, `z` coordinates giving its position in 3D space:
 
 ## How to run
 
-### Step 1 — Edit the CONFIG block in each script
+### Step 1 — Edit the CONFIG section in each script
 
-Each script has a group of variables at the top (marked CONFIG). 
-Replace all `"/path/to/..."` placeholders with the actual paths to your files.
-Output directories are created automatically.
+Each script has a clearly marked `CONFIG SECTION` near the top with flat
+top-level variables (e.g. `T1_GENE_FILE`, `C1_CMM_FOLDER`, `OUTPUT_FILE`,
+etc.). Replace all `"/path/to/..."` placeholders with the actual paths to
+your files. Output directories are created automatically.
 
 ### Step 2 — Run the scripts in order
 
@@ -132,12 +133,12 @@ have been saved.
 
 ### Scenario setting (inter vs intra)
 
-Script 02 has a `"scenario"` variable at the top:
+Script 02 has a `SCENARIO` variable at the top of the CONFIG section:
 
-- `"inter"` — keep only gene pairs where the translocated gene and its
+- `"inter"`: keep only gene pairs where the translocated gene and its
   neighbor are on **different chromosomes** (interchromosomal). Use this
   for translocations between chromosomes.
-- `"intra"` — keep only pairs on the **same chromosome** (intrachromosomal).
+- `"intra"`: keep only pairs on the **same chromosome** (intrachromosomal).
   Use this when analysing neighbors on the origin chromosome.
 
 Change the neighbor BED file accordingly:
@@ -178,26 +179,27 @@ further apart.
 
 ## Design decisions
 
-**Control gene sampling** — For each translocation event, the same number of
+**Control gene sampling**: For each translocation event, the same number of
 control genes as translocated genes is sampled at random from chromosomes not
 involved in the translocation. This creates a size-matched background
 distribution. The random seed is derived deterministically from the
 translocation ID so sampling is reproducible across runs.
 
-**Bead mapping** — Each gene is mapped to the Chrom3D bead whose genomic
+**Bead mapping**: Each gene is mapped to the Chrom3D bead whose genomic
 midpoint is closest to the gene's midpoint on the same chromosome.
 
-**Memory management** — Script 02 streams results to disk one model at a
-time rather than accumulating all 10 models in memory. Beads are pre-indexed
-as numpy arrays (rather than filtered as DataFrames per gene) to reduce memory
-overhead during gene mapping. `scipy.spatial.distance.cdist` is used instead
-of numpy broadcasting to avoid creating large intermediate arrays.
+**Memory management**: Script 02 writes each model's results to disk one
+model at a time, instead of keeping all results in memory at once. Each
+gene's nearest-bead lookup uses simple per-chromosome filtering inside the
+loop. `scipy.spatial.distance.cdist` is used to compute all pairwise
+distances at once for each translocation, which is much faster than
+nested Python loops.
 
-**Statistical test** — The Wilcoxon signed-rank test is used rather than a
+**Statistical test**: The Wilcoxon signed-rank test is used rather than a
 paired t-test because 3D distance distributions are not normally distributed.
 It tests whether the median pairwise distance is significantly different
 between the wildtype and the translocated condition.
 
-**Pair matching** — Before plotting, both the WT and condition distance tables
-are restricted to the gene pairs that appear in both (script 04,
-`enforce_equal_pairs`). This ensures the comparison is always like-for-like.
+**Pair matching**: Before plotting, both the WT and condition distance tables
+are restricted to the gene pairs that appear in both (using inner merges in
+script 04). This ensures the comparison is always like-for-like.
