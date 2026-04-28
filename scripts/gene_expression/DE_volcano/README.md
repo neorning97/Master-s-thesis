@@ -15,7 +15,7 @@ x-axis and -log10(adjusted p-value) on the y-axis. Genes that are both
 strongly changed and statistically significant appear in the upper corners.
 
 By overlaying genes from translocated regions in colour on top of all other
-genes shown in grey, the plot immediately shows whether translocated genes
+genes shown in gray, the plot immediately shows whether translocated genes
 cluster among the most significantly changed genes or are scattered
 throughout the background distribution.
 
@@ -84,25 +84,35 @@ statistical tests.
 
 ### Script 16
 
-Edit the CONFIG section at the top of `16_volcano_plots.py`:
+Edit the variables in the `CONFIG SECTION` near the top of
+`16_volcano_plots.py`:
 
 ```python
-CONFIG = {
-    "de_files": {
-        "T1": "/path/to/DE_WT_vs_T1.tsv",
-        "C1": "/path/to/DE_WT_vs_C1.tsv",
-    },
-    "dist_files": {
-        "T1": "/path/to/T1_distances_agg.tsv",
-        "C1": "/path/to/C1_distances_agg.tsv",
-    },
-    "lfc_threshold":  1.0,
-    "padj_threshold": 0.05,
-    "top_n_labels":   5,    # genes labelled on the plot
-    "top_n_table":    20,   # genes in the top_* TSV tables
-    "colors": {"Up": "green", "Down": "red", "No change": "blue"},
-    "output_dir": "/path/to/results/volcano_plots",
+# DESeq2 result files (from script 13)
+T1_DE_FILE = "/path/to/DE_WT_vs_T1.tsv"
+C1_DE_FILE = "/path/to/DE_WT_vs_C1.tsv"
+
+# Distance tables (from scripts 01-04), used to identify translocated genes
+T1_DIST_FILE = "/path/to/T1_distances_agg.tsv"
+C1_DIST_FILE = "/path/to/C1_distances_agg.tsv"
+
+# Thresholds for calling a gene differentially expressed
+LFC_THRESHOLD = 1.0
+PADJ_THRESHOLD = 0.05
+
+# How many top genes to label/export
+TOP_N_LABELS = 5     # genes labelled on the plot
+TOP_N_TABLE = 20     # genes in the top_* TSV tables
+
+# Colours for translocated genes by DE status
+de_colors = {
+    "Up":        "green",
+    "Down":      "red",
+    "No change": "blue",
 }
+
+# Output folder
+OUTPUT_FOLDER = "/path/to/results/volcano_plots"
 ```
 
 Then run:
@@ -113,39 +123,55 @@ python 16_volcano_plots.py
 
 ### Script 17
 
-Edit the CONFIG section at the top of `17_translocation_volcano_plots.py`.
-The most important setting is `"translocations"` — define each translocation
-as a list of (chromosome, start, end) coordinate tuples. A gene is included
-if it overlaps any of the listed regions:
+Edit the variables in the `CONFIG SECTION` near the top of
+`17_translocation_volcano_plots.py`. The most important setting is
+`translocations` — define each translocation as a list of
+(chromosome, start, end) coordinate tuples. A gene is included if it
+overlaps any of the listed regions:
 
 ```python
-CONFIG = {
-    "de_files": {
-        "T1": "/path/to/DE_WT_vs_T1.tsv",
-        "C1": "/path/to/DE_WT_vs_C1.tsv",
-    },
-    "gtf_file": "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf",
-    "translocations": {
-        "Der(17)t(3;17)": [
-            ("chr3",  0,          58_600_000),
-            ("chr17", 22_700_001, 83_257_441),
-        ],
-        "Der(3)t(3;17)": [
-            ("chr3",  58_600_001, 198_295_559),
-            ("chr17", 0,          22_700_000),
-        ],
-    },
-    "lfc_threshold":  1.0,
-    "padj_threshold": 0.05,
-    "top_n_labels":   5,
-    "top_n_table":    20,
-    "colors": {"Up": "green", "Down": "red", "No change": "blue"},
-    "output_dir": "/path/to/results/translocation_volcano_plots",
+# DESeq2 result files (from script 13)
+T1_DE_FILE = "/path/to/DE_WT_vs_T1.tsv"
+C1_DE_FILE = "/path/to/DE_WT_vs_C1.tsv"
+
+# GTF file with gene coordinates
+GTF_FILE = "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf"
+
+# Translocation regions to analyse
+# Each translocation is a list of (chromosome, start, end) tuples,
+# one tuple per genomic segment
+translocations = {
+    "Der(17)t(3;17)": [
+        ("chr3",  0,          58_600_000),
+        ("chr17", 22_700_001, 83_257_441),
+    ],
+    "Der(3)t(3;17)": [
+        ("chr3",  58_600_001, 198_295_559),
+        ("chr17", 0,          22_700_000),
+    ],
 }
+
+# Thresholds for calling a gene differentially expressed
+LFC_THRESHOLD = 1.0
+PADJ_THRESHOLD = 0.05
+
+# How many top genes to label/export
+TOP_N_LABELS = 5
+TOP_N_TABLE = 20
+
+# Colours for translocated genes by DE status
+de_colors = {
+    "Up":        "green",
+    "Down":      "red",
+    "No change": "blue",
+}
+
+# Output folder
+OUTPUT_FOLDER = "/path/to/results/translocation_volcano_plots"
 ```
 
 To add another translocation (e.g. t(6;19)), add a new entry to
-`"translocations"` with the correct chromosomal coordinates. No other
+`translocations` with the correct chromosomal coordinates. No other
 changes are needed.
 
 Then run:
@@ -161,7 +187,7 @@ python 17_translocation_volcano_plots.py
 ### Script 16
 
 Script 16 exports **four TSV files per condition** — two capped at
-`top_n_table` rows for quick inspection, and two containing all significant
+`TOP_N_TABLE` rows for quick inspection, and two containing all significant
 DE genes for use in GO enrichment analysis (script 18):
 
 | File | Description |
@@ -195,11 +221,11 @@ two translocations and two conditions, that is 12 files total:
 ### Plot description (both scripts)
 
 Each volcano plot shows:
-- **Light grey points** — all genes not in translocated regions
-- **Coloured points** — translocated genes by DE status:
+- **Light gray points**: all genes not in translocated regions
+- **Coloured points**: translocated genes by DE status:
   green = upregulated, red = downregulated, blue = not significantly changed
-- **Dashed lines** — the log2FC and padj thresholds
-- **Gene name labels** — the top 5 most significant up- and downregulated
+- **Dashed lines**: the log2FC and padj thresholds
+- **Gene name labels**: the top 5 most significant up- and downregulated
   translocated genes
 
 ### Statistical output (script 17 only)
@@ -238,7 +264,7 @@ suitable for reporting specific translocation results. Keeping them separate
 avoids each script becoming too complex.
 
 **Why export both top-N and all-genes tables in script 16?**
-The top-N tables (top_n_table = 20 by default) are convenient for quick
+The top-N tables (`TOP_N_TABLE = 20` by default) are convenient for quick
 inspection and match the genes labelled on the plot. The all-genes tables
 contain every significant DE translocated gene with no cap, which is
 required for GO enrichment analysis (script 18) — GO enrichment needs a
@@ -246,7 +272,7 @@ sufficiently large gene list to detect statistically significant
 overrepresentation after multiple testing correction. Using only 20 genes
 per list is typically too few.
 
-**Why show all genes in grey rather than only translocated genes?**
+**Why show all genes in gray rather than only translocated genes?**
 The full genome-wide distribution in the background provides essential
 context. Without it, you cannot judge whether the translocated genes are
 unusually significant or simply typical of what you would expect from genes
