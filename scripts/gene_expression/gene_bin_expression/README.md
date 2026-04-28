@@ -92,7 +92,7 @@ MCF10AC1_REP3   C1
 
 ### Script 13
 
-Edit the CONFIG section at the top of `13_differential_expression.R`:
+Edit the `CONFIG SECTION` at the top of `13_differential_expression.R`:
 
 ```r
 COUNTS_FILE  <- "/path/to/GSE246689_gene_counts.tsv"
@@ -109,22 +109,39 @@ Rscript 13_differential_expression.R
 
 ### Script 14
 
-Edit the CONFIG section at the top of `14_gene_bin_expression.py`:
+Edit the variables in the `CONFIG SECTION` at the top of
+`14_gene_bin_expression.py`:
 
 ```python
-CONFIG = {
-    "bins_file":      "/path/to/results/bins_annotation.csv",
-    "gtf_file":       "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf",
-    "tpm_file":       "/path/to/GSE246689_gene_tpm.tsv",
-    "de_files": {
-        "T1": "/path/to/results/DE_WT_vs_T1.tsv",
-        "C1": "/path/to/results/DE_WT_vs_C1.tsv",
-    },
-    "lfc_threshold":  1.0,    # |log2FC| must exceed this to be called DE
-    "padj_threshold": 0.05,   # adjusted p-value threshold
-    "output_dir":     "/path/to/results/gene_bin_expression",
-}
+# Bin classification table (from script 10)
+BINS_FILE = "/path/to/bins_annotation.csv"
+
+# GTF gene annotation file
+GTF_FILE = "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf"
+
+# RNA-seq TPM expression file
+TPM_FILE = "/path/to/GSE246689_gene_tpm.tsv"
+
+# DESeq2 result files (from script 13)
+T1_DE_FILE = "/path/to/DE_WT_vs_T1.tsv"
+C1_DE_FILE = "/path/to/DE_WT_vs_C1.tsv"
+
+# Replicate column names in the TPM file, update if your column names differ
+WT_REPLICATES = ["MCF10AWT_REP1", "MCF10AWT_REP2", "MCF10AWT_REP3"]
+T1_REPLICATES = ["MCF10AT1_REP1", "MCF10AT1_REP2", "MCF10AT1_REP3"]
+C1_REPLICATES = ["MCF10AC1_REP1", "MCF10AC1_REP2", "MCF10AC1_REP3"]
+
+# Thresholds for calling a gene differentially expressed
+LFC_THRESHOLD = 1.0       # |log2FC| must exceed this to be called DE
+PADJ_THRESHOLD = 0.05     # adjusted p-value threshold
+
+# Output folder
+OUTPUT_FOLDER = "/path/to/results/gene_bin_expression"
 ```
+
+The replicate column names (`WT_REPLICATES`, `T1_REPLICATES`,
+`C1_REPLICATES`) must match the column names in your TPM file. If your TPM
+file uses different sample IDs, update these lists accordingly.
 
 Then run:
 
@@ -150,7 +167,7 @@ Columns: `gene_id`, `gene_name`, `baseMean`, `log2FoldChange`
 
 | File | Description |
 |------|-------------|
-| `gene_expression_genomewide.csv` | All genes with expression values, log2FC, and DE status — used as the genome-wide control |
+| `gene_expression_genomewide.csv` | All genes with expression values, log2FC, and DE status, used as the genome-wide control |
 | `gene_bin_expression_annotation.csv` | Genes in translocated bins with bin classification labels and DE status, one row per gene per condition |
 | `T1_behavior_collapsed_DE_fraction.png` | Fraction up/down/ns per collapsed A/B category in T1 |
 | `T1_change_direction_DE_fraction.png` | Fraction up/down/ns per A→B / B→A direction in T1 |
@@ -189,11 +206,15 @@ condition, filtering the bins table to T1 rows only, then C1 rows only,
 every gene is evaluated independently for each condition, producing fair and
 comparable gene counts.
 
-**Why Kruskal-Wallis rather than ANOVA?**
-Log2 fold changes are not normally distributed across genes, violating the
-assumptions of ANOVA. The Kruskal-Wallis test is a non-parametric alternative
-that tests whether the median fold change differs significantly across bin
-categories (retained, adopted, other) without assuming normality.
+**Why Kruskal-Wallis rather than ANOVA, Mann-Whitney U, or Wilcoxon?**
+Log2 fold changes are not normally distributed across genes, which rules
+out ANOVA. Mann-Whitney U is a good non-parametric choice but only handles
+two groups at a time, and we have three bin categories (retained, adopted,
+other). Wilcoxon signed-rank requires *paired* data, but here the bin
+categories are independent groups of genes with no natural pairing between
+them. Kruskal-Wallis is the correct non-parametric test for comparing
+medians across three or more independent groups, and is essentially the
+generalisation of Mann-Whitney U beyond two groups.
 
 **Why chi-square in addition to Kruskal-Wallis?**
 The two tests capture different aspects of the data. Kruskal-Wallis compares
@@ -209,7 +230,7 @@ bins show a higher fraction of upregulated genes than the genome-wide average,
 it suggests compartment adoption specifically promotes gene activation rather
 than the elevation being a general property of T1 or C1.
 
-**Only verified translocations are analysed**
+**Only verified translocations are analyzed**
 Script 14 inherits its translocation regions from `bins_annotation.csv`,
 which was produced by script 10 using the verified translocation BED files
 (`verify_T1_translocations.bed`, `verify_C1_translocations.bed`). Only genes
