@@ -2,72 +2,65 @@
 # 12_subcompartment_alluvial.R
 # ============================================================================
 #
-# What this script does
-# ---------------------
-# Produces alluvial (Sankey) diagrams showing how genomic bins flow between
-# chromatin subcompartments across conditions (WT -> T1 -> C1 or WT -> C1).
+# This script makes "alluvial" plots (also called Sankey diagrams) showing
+# how 100 kb genomic bins flow between subcompartments across conditions.
 #
-# Two types of plot are produced for each translocation:
+# What's an alluvial plot?
+# - Imagine a bar chart for each condition (WT, T1, C1) showing how many
+#   bins are in each subcompartment.
+# - Now imagine RIBBONS connecting the bars, showing which bins moved from
+#   one subcompartment to another between conditions.
+# - Wider ribbon = more bins took that path.
+# - It lets you see WHICH bins changed and where they went.
 #
-#   1. Per-segment plots — one plot per individual BED row (fragment or body)
-#      showing transitions within that specific genomic segment.
+# What we plot:
+# 1. Per-segment plots: one plot per individual fragment or body piece.
+# 2. Whole-translocation plots: one plot combining the fragment + body
+#    of each translocation into a single overall view.
 #
-#   2. Whole-translocation plots — one plot per translocation (e.g.
-#      Der(17)t(3;17)) combining both the fragment and body rows into a single
-#      region. This gives an overview of the full translocation event.
+# The translocations we plot:
+#   Der(17)t(3;17) — chr3 fragment + chr17 body — WT, T1, C1
+#   Der(3)t(3;17)  — chr17 fragment + chr3 body — WT, T1, C1
+#   t(6;19)        — chr19 fragment + chr6 body — WT, T1, C1
+#   t(2;10)        — chr2 fragment + chr10 body — WT and C1 ONLY
+#                    (because t(2;10) doesn't exist in T1)
 #
-# Translocations and conditions covered:
+# Edit the file paths below before running.
 #
-#   Der(17)t(3;17) — chr3:0–58.6Mb + chr17:22.7–83.3Mb — WT, T1, C1
-#   Der(3)t(3;17)  — chr3:58.6–198.3Mb + chr17:0–22.7Mb — WT, T1, C1
-#   t(6;19)        — chr6:0–170.8Mb + chr19:0–31.9Mb    — WT, T1, C1
-#   t(2;10)        — chr2:0–131.7Mb + chr10:39.8–133.8Mb — WT and C1 ONLY
-#                    (t(2;10) does not occur in T1)
-#
-# Segments that appear in both the T1 and C1 BED files are only plotted once.
-#
-# Why an alluvial plot?
-# ---------------------
-# A bar chart shows the marginal distribution of subcompartments per condition
-# but cannot show which bins changed state and where they went. The alluvial
-# diagram makes transitions explicit: the width of each ribbon is proportional
-# to the number of 100 kb bins that follow that particular transition path.
-#
-# Colour scheme
-# -------------
-# A-compartment = shades of red (A0 = lightest, A3 = darkest).
-# B-compartment = shades of blue (B0 = lightest, B3 = darkest).
-# Matches the colour scheme used in scripts 10 and 11.
-#
-# Usage
-# -----
-#   1. Edit the CONFIG section below to point to your files.
-#   2. Run: Rscript 12_subcompartment_alluvial.R
-#      or source the script from RStudio.
-#
-# Dependencies
-# ------------
-#   tidyverse, ggalluvial
-#   Install with: install.packages(c("tidyverse", "ggalluvial"))
-#
+# Required packages: tidyverse, ggalluvial
+# Install them with: install.packages(c("tidyverse", "ggalluvial"))
 # ============================================================================
 
 
 # ============================================================================
-# CONFIG – edit all paths and settings here before running
+# CONFIG SECTION - Edit these settings before running!
 # ============================================================================
 
-# Subcompartment bedGraph file (100 kb resolution, WT + T1 + C1)
+# -----------------------------------------------------------------------------
+# Subcompartment file
+# -----------------------------------------------------------------------------
+# Tells us what subcompartment each 100 kb bin is in, for WT/T1/C1
 INPUT_FILE <- "/path/to/GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph"
 
-# Translocation BED files — one row per segment, paired by transloc_id.
+# -----------------------------------------------------------------------------
+# BED files for translocations - one for each condition
+# -----------------------------------------------------------------------------
+T1_BED <- "/path/to/verify_T1_translocations.bed"
+C1_BED <- "/path/to/verify_C1_translocations.bed"
+
+# Group them in a list so we can loop through them later.
+# A "list" in R is like a dictionary, it can hold named values of
+# different types.
 TRANSLOC_BEDS <- list(
-  T1 = "/path/to/verify_T1_translocations.bed",
-  C1 = "/path/to/verify_C1_translocations.bed"
+  T1 = T1_BED,
+  C1 = C1_BED
 )
 
-# Maps the 'label' column in the BED files to a human-readable segment name,
-# used in plot titles and output filenames.
+# -----------------------------------------------------------------------------
+# Map from "label" column in the BED files -> readable segment name
+# -----------------------------------------------------------------------------
+# This is a "named character vector" in R, basically a key-->value lookup.
+# We use it for the per-segment plot titles.
 LABEL_NAMES <- c(
   "T1_transloc_1"         = "chr3 fragment – Der(17)t(3;17)",
   "T1_transloc_1_partner" = "chr17 body – Der(17)t(3;17)",
@@ -85,279 +78,525 @@ LABEL_NAMES <- c(
   "C1_transloc_4_partner" = "chr19 fragment – t(6;19)"
 )
 
-# Maps transloc_id values to whole-translocation names.
-# Each transloc_id covers two rows (fragment + body); this name is used for
-# the combined whole-translocation plot.
-WHOLE_TRANSLOC_NAMES <- c(
-  # T1 BED transloc_ids
+# -----------------------------------------------------------------------------
+# Maps from transloc_id -> readable translocation name (one map per BED file)
+# -----------------------------------------------------------------------------
+# We need separate maps because the same transloc_id (like "T1") means
+# different things in different BED files.
+T1_NAME_MAP <- c(
   "T1" = "Der(17)t(3;17)",
   "T2" = "Der(3)t(3;17)",
-  "T3" = "t(6;19)",
-  # C1 BED transloc_ids
-  "T1" = "t(2;10)",      # C1 T1 = t(2;10) — handled per-BED below
+  "T3" = "t(6;19)"
+)
+
+C1_NAME_MAP <- c(
+  "T1" = "t(2;10)",
   "T2" = "Der(17)t(3;17)",
   "T3" = "Der(3)t(3;17)",
   "T4" = "t(6;19)"
 )
 
-# Translocation name maps per BED file (same as in script 11)
+# Group them in a list so we can pick the right map per BED file.
 TRANSLOC_NAME_MAPS <- list(
-  T1 = c("T1" = "Der(17)t(3;17)", "T2" = "Der(3)t(3;17)", "T3" = "t(6;19)"),
-  C1 = c("T1" = "t(2;10)", "T2" = "Der(17)t(3;17)", "T3" = "Der(3)t(3;17)", "T4" = "t(6;19)")
+  T1 = T1_NAME_MAP,
+  C1 = C1_NAME_MAP
 )
 
-# Translocations that should only be plotted for WT and C1 (not T1).
-# t(2;10) only occurs in C1, so including T1 would show an unaffected genome.
-WJCT_ONLY_CONDITIONS <- c("t(2;10)")   # WT + C1 only
+# Note: the original script also defined a WHOLE_TRANSLOC_NAMES vector with
+# duplicate names ("T1" appeared twice etc.). When R sees duplicate names,
+# only the FIRST one is used on lookup, so it would silently give wrong
+# results. The script doesn't actually need it (it uses TRANSLOC_NAME_MAPS
+# instead) so I haven't included it here.
 
-# Where to save output plots (created automatically)
+# -----------------------------------------------------------------------------
+# Translocations to plot for WT and C1 only (skipping T1)
+# -----------------------------------------------------------------------------
+# t(2;10) doesn't exist in T1, so showing the T1 column would be misleading.
+WT_C1_ONLY <- c("t(2;10)")
+
+# -----------------------------------------------------------------------------
+# Output folder for plots
+# -----------------------------------------------------------------------------
 OUTPUT_DIR <- "/path/to/results/subcompartment_alluvial"
 
-# Output dimensions and resolution
-PLOT_WIDTH  <- 8    # inches
-PLOT_HEIGHT <- 6    # inches
-PLOT_DPI    <- 300
-
-# ============================================================================
+# -----------------------------------------------------------------------------
+# Plot dimensions
+# -----------------------------------------------------------------------------
+PLOT_WIDTH  <- 8     # inches
+PLOT_HEIGHT <- 6     # inches
+PLOT_DPI    <- 300   # dots per inch (resolution)
 
 
 # ============================================================================
 # Load libraries
 # ============================================================================
+# tidyverse gives us things like dplyr (data manipulation), ggplot2 (plots),
+# readr (reading files), stringr (string functions).
+# ggalluvial adds the alluvial plot layer for ggplot2.
 
 library(tidyverse)
 library(ggalluvial)
 
 
 # ============================================================================
-# Colour palette and factor levels (consistent across all plots)
+# Colour palette and ordering
 # ============================================================================
 
+# Each subcompartment gets a colour:
+# Reds for A (active), blues for B (inactive)
 subcomp_colors <- c(
-  "A3" = "#CB181D", "A2" = "#FB6A4A", "A1" = "#FCAE91", "A0" = "#FEE5D9",
-  "B0" = "#DEEBF7", "B1" = "#9ECAE1", "B2" = "#4292C6", "B3" = "#084594"
+  "A3" = "#CB181D",   # darkest red
+  "A2" = "#FB6A4A",
+  "A1" = "#FCAE91",
+  "A0" = "#FEE5D9",   # lightest red
+  "B0" = "#DEEBF7",   # lightest blue
+  "B1" = "#9ECAE1",
+  "B2" = "#4292C6",
+  "B3" = "#084594"    # darkest blue
 )
 
-# Ordered from most inactive (B3) to most active (A3)
+# When we make the subcompartment column a "factor", R uses this order
+# in the plots (instead of alphabetical order).
+# We order from most inactive (B3) at the bottom to most active (A3) at the top.
 sub_levels <- c("B3", "B2", "B1", "B0", "A0", "A1", "A2", "A3")
 
 
 # ============================================================================
-# Load subcompartment data
+# Helper function: Make a "safe" filename
+# ============================================================================
+# Translocation names contain characters like "(", ")", and ";" that aren't
+# great in filenames. This replaces them with underscores.
+
+make_safe_name <- function(name) {
+
+  # str_replace_all replaces every match of a pattern.
+  # The pattern "[^A-Za-z0-9]+" matches one or more characters that are
+  # NOT letters or numbers. So things like "(", ")", ";", "-", " ", etc.
+  safe <- str_replace_all(name, "[^A-Za-z0-9]+", "_")
+
+  # Remove a trailing underscore if there is one
+  safe <- str_remove(safe, "_$")
+
+  return(safe)
+}
+
+
+# ============================================================================
+# Helper function: Build an alluvial plot
+# ============================================================================
+# Takes a "flow" data frame (counts of bins for each path through conditions)
+# and returns a ggplot object that can be saved or displayed.
+
+build_alluvial_plot <- function(flow, title, axes) {
+
+  # We use different aesthetics depending on whether we have 2 or 3 axes
+  n_axes <- length(axes)
+
+  if (n_axes == 3) {
+
+    # 3 axes: WT -> T1 -> C1
+    p <- ggplot(flow, aes(
+      axis1 = MCF10A_WT.state,
+      axis2 = MCF10A_T1.state,
+      axis3 = MCF10A_C1.state,
+      y = n
+    ))
+    x_limits <- c("WT", "T1", "C1")
+
+  } else {
+
+    # 2 axes: WT -> C1 (used for t(2;10))
+    p <- ggplot(flow, aes(
+      axis1 = MCF10A_WT.state,
+      axis2 = MCF10A_C1.state,
+      y = n
+    ))
+    x_limits <- c("WT", "C1")
+  }
+
+  # ---------------------------------------------------------------------------
+  # Build the plot by adding layers with +
+  # ---------------------------------------------------------------------------
+  # geom_alluvium draws the ribbons between bars.
+  # geom_stratum draws the bars themselves.
+  # after_stat(stratum) gets the subcompartment label so we can colour by it.
+
+  p <- p + geom_alluvium(aes(fill = after_stat(stratum)), alpha = 0.7)
+  p <- p + geom_stratum(aes(fill = after_stat(stratum)),
+                        color = "black", size = 0.2)
+
+  # Use our colour palette and add a legend title
+  p <- p + scale_fill_manual(values = subcomp_colors,
+                             name = "Subcompartment")
+
+  # Set the x-axis labels
+  p <- p + scale_x_discrete(limits = x_limits, labels = x_limits)
+
+  # Reverse the y-axis so A-compartment (active) appears on top.
+  # breaks = NULL hides the y-axis numbers (they don't mean much here).
+  p <- p + scale_y_reverse(breaks = NULL)
+
+  # Add the title and axis labels
+  p <- p + labs(
+    title = title,
+    x = "Cell line",
+    y = "Number of 100 kb bins"
+  )
+
+  # Use the minimal theme as a starting point
+  p <- p + theme_minimal(base_size = 14)
+
+  # Customize various theme elements:
+  # - put legend on the right
+  # - hide grid lines and y-axis text/ticks
+  # - make x-axis text black, axis titles bold, plot title bold and centred
+  p <- p + theme(
+    legend.position = "right",
+    panel.grid      = element_blank(),
+    axis.text.y     = element_blank(),
+    axis.ticks.y    = element_blank(),
+    axis.text.x     = element_text(color = "black"),
+    axis.title      = element_text(face = "bold"),
+    plot.title      = element_text(face = "bold", hjust = 0.5)
+  )
+
+  return(p)
+}
+
+
+# ============================================================================
+# Helper function: Save a plot to a JPEG file
+# ============================================================================
+
+save_plot <- function(p, name) {
+
+  # Make a safe filename
+  safe <- make_safe_name(name)
+
+  # Build the full file path.
+  # sprintf is like Python's format: %s gets replaced by the string.
+  filename <- sprintf("alluvial_%s.jpeg", safe)
+  out_path <- file.path(OUTPUT_DIR, filename)
+
+  # Save the plot
+  ggsave(out_path, p,
+         width = PLOT_WIDTH,
+         height = PLOT_HEIGHT,
+         dpi = PLOT_DPI)
+
+  cat(sprintf("  Saved: %s\n", out_path))
+}
+
+
+# ============================================================================
+# Step 1: Load the subcompartment data
 # ============================================================================
 
 cat("Loading subcompartment data...\n")
-sub <- read_tsv(INPUT_FILE, show_col_types = FALSE) %>%
-  mutate(
-    MCF10A_WT.state = factor(MCF10A_WT.state, levels = sub_levels),
-    MCF10A_T1.state = factor(MCF10A_T1.state, levels = sub_levels),
-    MCF10A_C1.state = factor(MCF10A_C1.state, levels = sub_levels)
-  ) %>%
-  drop_na()
+
+# read_tsv reads a tab-separated file
+# show_col_types = FALSE quiets the messages about column types
+sub <- read_tsv(INPUT_FILE, show_col_types = FALSE)
+
+# Convert the subcompartment columns to factors with our ordering.
+# A "factor" is R's way of storing categorical data with a defined order.
+sub$MCF10A_WT.state <- factor(sub$MCF10A_WT.state, levels = sub_levels)
+sub$MCF10A_T1.state <- factor(sub$MCF10A_T1.state, levels = sub_levels)
+sub$MCF10A_C1.state <- factor(sub$MCF10A_C1.state, levels = sub_levels)
+
+# Drop rows with any NA (missing) values
+sub <- drop_na(sub)
 
 cat(sprintf("Loaded %d bins total.\n", nrow(sub)))
 
 
 # ============================================================================
-# Helper functions
+# Step 2: Load and combine all BED files into one big segments table
 # ============================================================================
-
-make_safe_name <- function(name) {
-  # Convert a human-readable name to a safe filename (no special characters)
-  name %>%
-    str_replace_all("[^A-Za-z0-9]+", "_") %>%
-    str_remove("_$")
-}
-
-
-build_alluvial_plot <- function(flow, title, axes = c("WT", "T1", "C1"),
-                                subcomp_colors) {
-  # Determine which axes are present in the flow data
-  # (for WT+C1 only plots, axis2 = C1 directly)
-  n_axes <- length(axes)
-  
-  if (n_axes == 3) {
-    p <- ggplot(flow,
-                aes(axis1 = MCF10A_WT.state,
-                    axis2 = MCF10A_T1.state,
-                    axis3 = MCF10A_C1.state,
-                    y = n))
-    x_limits <- c("WT", "T1", "C1")
-  } else {
-    # Two-condition plot: WT and C1 only
-    p <- ggplot(flow,
-                aes(axis1 = MCF10A_WT.state,
-                    axis2 = MCF10A_C1.state,
-                    y = n))
-    x_limits <- c("WT", "C1")
-  }
-  
-  p +
-    geom_alluvium(aes(fill = after_stat(stratum)), alpha = 0.7) +
-    geom_stratum(aes(fill = after_stat(stratum)), color = "black", size = 0.2) +
-    scale_fill_manual(values = subcomp_colors, name = "Subcompartment") +
-    scale_x_discrete(limits = x_limits, labels = x_limits) +
-    # Reverse y-axis so A-compartment (active) appears at the top
-    scale_y_reverse(breaks = NULL) +
-    labs(title = title, x = "Cell line", y = "Number of 100 kb bins") +
-    theme_minimal(base_size = 14) +
-    theme(
-      legend.position = "right",
-      panel.grid      = element_blank(),
-      axis.text.y     = element_blank(),
-      axis.ticks.y    = element_blank(),
-      axis.text.x     = element_text(color = "black"),
-      axis.title      = element_text(face = "bold"),
-      plot.title      = element_text(face = "bold", hjust = 0.5)
-    )
-}
-
-
-save_plot <- function(p, name, output_dir, width, height, dpi) {
-  out_path <- file.path(output_dir, sprintf("alluvial_%s.jpeg", make_safe_name(name)))
-  ggsave(out_path, p, width = width, height = height, dpi = dpi)
-  cat(sprintf("  Saved: %s\n", out_path))
-}
-
-
-filter_bins <- function(sub, regions) {
-  # Filter subcompartment bins to any row matching one of the given regions.
-  # regions is a data frame with columns: chrom, start, end
-  map_dfr(seq_len(nrow(regions)), function(i) {
-    sub %>% filter(
-      chrom >= regions$chrom[i] &   # same chromosome
-        chrom <= regions$chrom[i] &
-        start >= regions$start[i] &
-        end   <= regions$end[i]
-    )
-  }) %>%
-    distinct(chrom, start, end, .keep_all = TRUE)
-}
-
-
-# ============================================================================
-# Load BED files and build segment tables
-# ============================================================================
+# We loop through each BED file, read it, and stack the rows into one table.
 
 cat("\nLoading translocation segments from BED files...\n")
 
-# Individual segments (one row per BED row)
-all_segments <- map_dfr(names(TRANSLOC_BEDS), function(cond_key) {
-  read_tsv(TRANSLOC_BEDS[[cond_key]], show_col_types = FALSE) %>%
-    mutate(source_condition = cond_key)
-}) %>%
-  mutate(start = as.integer(start), end = as.integer(end)) %>%
-  mutate(segment_name = coalesce(LABEL_NAMES[label], label)) %>%
-  distinct(chrom, start, end, .keep_all = TRUE)
+# Empty list - we'll fill it with one data frame per BED file
+loaded_beds <- list()
+
+# names(TRANSLOC_BEDS) gives us the keys: "T1" and "C1"
+for (cond_key in names(TRANSLOC_BEDS)) {
+
+  # Get the file path for this condition
+  bed_path <- TRANSLOC_BEDS[[cond_key]]
+
+  # Read the BED file
+  bed_data <- read_tsv(bed_path, show_col_types = FALSE)
+
+  # Add a column saying which condition this came from
+  bed_data$source_condition <- cond_key
+
+  # Add it to our list
+  loaded_beds[[cond_key]] <- bed_data
+}
+
+# bind_rows stacks data frames on top of each other (like pd.concat in Python)
+all_segments <- bind_rows(loaded_beds)
+
+# Make sure start and end are integers
+all_segments$start <- as.integer(all_segments$start)
+all_segments$end   <- as.integer(all_segments$end)
+
+# Add a "segment_name" column with the readable name.
+# LABEL_NAMES[label] looks up each label in our LABEL_NAMES vector.
+# coalesce() returns the first non-NA value. If a label isn't in the
+# lookup, we use the label itself as a fallback.
+all_segments$segment_name <- coalesce(
+  LABEL_NAMES[all_segments$label],
+  all_segments$label
+)
+
+# Remove duplicate rows (same chrom/start/end across both BED files)
+all_segments <- distinct(all_segments, chrom, start, end, .keep_all = TRUE)
 
 cat(sprintf("Found %d unique individual segments.\n", nrow(all_segments)))
 
-# Whole-translocation regions: combine fragment + body rows per transloc_id
-# by taking the union of their coordinates on each chromosome separately.
-whole_translocs <- map_dfr(names(TRANSLOC_BEDS), function(cond_key) {
-  bed      <- read_tsv(TRANSLOC_BEDS[[cond_key]], show_col_types = FALSE) %>%
-    mutate(start = as.integer(start), end = as.integer(end))
+
+# ============================================================================
+# Step 3: Build the "whole translocation" regions table
+# ============================================================================
+# For each translocation, we want to combine its fragment + body rows
+# into a single region per chromosome.
+# This gives us, for example, "Der(17)t(3;17)" with one chr3 region and
+# one chr17 region.
+
+cat("\nBuilding whole-translocation regions...\n")
+
+# We'll collect rows for the final data frame in this list
+whole_transloc_pieces <- list()
+
+# Loop through each BED file
+for (cond_key in names(TRANSLOC_BEDS)) {
+
+  # Read the BED file (again, it's a small file, that's fine)
+  bed_path <- TRANSLOC_BEDS[[cond_key]]
+  bed <- read_tsv(bed_path, show_col_types = FALSE)
+  bed$start <- as.integer(bed$start)
+  bed$end   <- as.integer(bed$end)
+
+  # Get the name map for this condition
   name_map <- TRANSLOC_NAME_MAPS[[cond_key]]
-  
-  map_dfr(unique(bed$transloc_id), function(tid) {
-    rows <- bed %>% filter(transloc_id == tid)
+
+  # Loop through each unique transloc_id in this BED file
+  unique_tids <- unique(bed$transloc_id)
+
+  for (tid in unique_tids) {
+
+    # Get all rows for this translocation
+    rows <- bed[bed$transloc_id == tid, ]
+
+    # Look up the readable name
     transloc_name <- name_map[tid]
-    
-    # Return one row per chromosome involved in this translocation
-    rows %>%
+
+    # Group by chromosome and take min(start) and max(end) to get the
+    # whole region this translocation covers on each chromosome.
+    summary_per_chrom <- rows %>%
       group_by(chrom) %>%
-      summarise(start = min(start), end = max(end), .groups = "drop") %>%
-      mutate(
-        transloc_name    = transloc_name,
-        source_condition = cond_key
+      summarise(
+        start = min(start),
+        end = max(end),
+        .groups = "drop"
       )
-  })
-}) %>%
-  # Drop duplicate chromosome regions for the same translocation
-  distinct(transloc_name, chrom, start, end, .keep_all = TRUE)
+
+    # Add the translocation name and source condition columns
+    summary_per_chrom$transloc_name <- transloc_name
+    summary_per_chrom$source_condition <- cond_key
+
+    # Add it to our pieces list.
+    # We use a unique name so we don't overwrite earlier entries.
+    list_key <- paste0(cond_key, "_", tid)
+    whole_transloc_pieces[[list_key]] <- summary_per_chrom
+  }
+}
+
+# Stack all the pieces into one big data frame
+whole_translocs <- bind_rows(whole_transloc_pieces)
+
+# Drop duplicate (translocation x chromosome region) entries.
+# A translocation might appear in both T1 and C1 BED files; we only need
+# its region info once.
+whole_translocs <- distinct(
+  whole_translocs,
+  transloc_name, chrom, start, end,
+  .keep_all = TRUE
+)
 
 cat(sprintf("Found %d unique whole-translocation chromosome regions.\n",
             nrow(whole_translocs)))
 
 
 # ============================================================================
-# Part 1: Per-segment alluvial plots
+# Step 4: Make the output folder
 # ============================================================================
 
-cat("\n--- Generating per-segment alluvial plots ---\n")
+# showWarnings = FALSE means: don't warn if the folder already exists
+# recursive = TRUE means: also create parent folders if needed
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
+
+# ============================================================================
+# Step 5: Make per-segment alluvial plots
+# ============================================================================
+# One plot per row of all_segments
+
+cat("\n--- Generating per-segment alluvial plots ---\n")
+
+# seq_len(N) gives us 1, 2, 3, ..., N (R is 1-indexed!)
 for (i in seq_len(nrow(all_segments))) {
-  seg  <- all_segments[i, ]
+
+  # Get this row's info
+  seg <- all_segments[i, ]
   name <- seg$segment_name
-  
-  # Determine whether this is a t(2;10) segment (WT + C1 only)
-  is_wt_c1_only <- any(map_lgl(WJCT_ONLY_CONDITIONS, ~ str_detect(name, fixed(.x))))
-  axes <- if (is_wt_c1_only) c("WT", "C1") else c("WT", "T1", "C1")
-  
-  sub_region <- sub %>%
-    filter(chrom == seg$chrom & start >= seg$start & end <= seg$end)
-  
-  if (nrow(sub_region) == 0) {
-    cat(sprintf("  No bins for %s, skipping.\n", name)); next
+  seg_chrom <- seg$chrom
+  seg_start <- seg$start
+  seg_end <- seg$end
+
+  # ---------------------------------------------------------------------------
+  # Decide whether this is a WT+C1-only plot
+  # ---------------------------------------------------------------------------
+  # Check if any of the WT_C1_ONLY names appears in this segment's name.
+  # str_detect returns TRUE/FALSE for each value.
+  is_wt_c1_only <- FALSE
+  for (only_name in WT_C1_ONLY) {
+    if (str_detect(name, fixed(only_name))) {
+      is_wt_c1_only <- TRUE
+    }
   }
-  cat(sprintf("  %s: %d bins (%s)\n", name, nrow(sub_region),
-              paste(axes, collapse = " + ")))
-  
-  flow <- if (is_wt_c1_only) {
-    sub_region %>% count(MCF10A_WT.state, MCF10A_C1.state)
+
+  # Set the axes based on whether it's WT+C1 only
+  if (is_wt_c1_only) {
+    axes <- c("WT", "C1")
   } else {
-    sub_region %>% count(MCF10A_WT.state, MCF10A_T1.state, MCF10A_C1.state)
+    axes <- c("WT", "T1", "C1")
   }
-  
-  p <- build_alluvial_plot(flow, title = name, axes = axes,
-                           subcomp_colors = subcomp_colors)
-  save_plot(p, name, OUTPUT_DIR, PLOT_WIDTH, PLOT_HEIGHT, PLOT_DPI)
+
+  # ---------------------------------------------------------------------------
+  # Get the bins inside this segment
+  # ---------------------------------------------------------------------------
+  sub_region <- sub[
+    sub$chrom == seg_chrom &
+    sub$start >= seg_start &
+    sub$end   <= seg_end,
+  ]
+
+  # Skip if there are no bins
+  if (nrow(sub_region) == 0) {
+    cat(sprintf("  No bins for %s, skipping.\n", name))
+    next   # next is like Python's continue, skip to the next iteration
+  }
+
+  cat(sprintf("  %s: %d bins (%s)\n",
+              name,
+              nrow(sub_region),
+              paste(axes, collapse = " + ")))
+
+  # ---------------------------------------------------------------------------
+  # Count bins for each path through the conditions
+  # ---------------------------------------------------------------------------
+  # count() groups by the given columns and counts how many rows are in
+  # each group. The count is in a column called "n" by default.
+  if (is_wt_c1_only) {
+    flow <- count(sub_region, MCF10A_WT.state, MCF10A_C1.state)
+  } else {
+    flow <- count(sub_region,
+                  MCF10A_WT.state, MCF10A_T1.state, MCF10A_C1.state)
+  }
+
+  # ---------------------------------------------------------------------------
+  # Build and save the plot
+  # ---------------------------------------------------------------------------
+  p <- build_alluvial_plot(flow, title = name, axes = axes)
+  save_plot(p, name)
 }
 
 
 # ============================================================================
-# Part 2: Whole-translocation alluvial plots
+# Step 6: Make whole-translocation alluvial plots
 # ============================================================================
-# Each whole-translocation plot combines all chromosomal regions involved in
-# one translocation event (e.g. both the chr3 fragment and the chr17 body
-# for Der(17)t(3;17)) into a single count of transitions.
+# These combine all chromosomal regions of a translocation into one plot.
+# Example: Der(17)t(3;17) has bits on chr3 AND chr17, the whole-translocation
+# plot pools both into a single count.
 
 cat("\n--- Generating whole-translocation alluvial plots ---\n")
 
-for (trans_name in unique(whole_translocs$transloc_name)) {
-  regions <- whole_translocs %>% filter(transloc_name == trans_name)
-  
-  is_wt_c1_only <- trans_name %in% WJCT_ONLY_CONDITIONS
-  axes <- if (is_wt_c1_only) c("WT", "C1") else c("WT", "T1", "C1")
-  
-  # Collect bins from all chromosomal regions of this translocation
-  sub_all <- map_dfr(seq_len(nrow(regions)), function(i) {
-    sub %>% filter(
-      chrom == regions$chrom[i] &
-        start >= regions$start[i] &
-        end   <= regions$end[i]
-    )
-  }) %>%
-    distinct(chrom, start, end, .keep_all = TRUE)
-  
-  if (nrow(sub_all) == 0) {
-    cat(sprintf("  No bins for %s — skipping.\n", trans_name)); next
-  }
-  cat(sprintf("  %s (whole): %d bins across %d chromosome region(s) (%s)\n",
-              trans_name, nrow(sub_all), nrow(regions),
-              paste(axes, collapse = " + ")))
-  
-  flow <- if (is_wt_c1_only) {
-    sub_all %>% count(MCF10A_WT.state, MCF10A_C1.state)
+# Get the list of unique translocation names
+unique_names <- unique(whole_translocs$transloc_name)
+
+for (trans_name in unique_names) {
+
+  # Get all the chromosome regions for this translocation
+  regions <- whole_translocs[whole_translocs$transloc_name == trans_name, ]
+
+  # Decide if it's WT+C1 only
+  is_wt_c1_only <- trans_name %in% WT_C1_ONLY
+
+  if (is_wt_c1_only) {
+    axes <- c("WT", "C1")
   } else {
-    sub_all %>% count(MCF10A_WT.state, MCF10A_T1.state, MCF10A_C1.state)
+    axes <- c("WT", "T1", "C1")
   }
-  
+
+  # ---------------------------------------------------------------------------
+  # Collect bins from ALL chromosome regions for this translocation
+  # ---------------------------------------------------------------------------
+  # We loop through each region and find the matching bins, then stack
+  # them into one big data frame.
+  region_bins_pieces <- list()
+
+  for (j in seq_len(nrow(regions))) {
+
+    region_chrom <- regions$chrom[j]
+    region_start <- regions$start[j]
+    region_end <- regions$end[j]
+
+    matching_bins <- sub[
+      sub$chrom == region_chrom &
+      sub$start >= region_start &
+      sub$end   <= region_end,
+    ]
+
+    region_bins_pieces[[j]] <- matching_bins
+  }
+
+  # Stack them all together
+  sub_all <- bind_rows(region_bins_pieces)
+
+  # Drop duplicate bins (in case there's any overlap)
+  sub_all <- distinct(sub_all, chrom, start, end, .keep_all = TRUE)
+
+  # Skip if no bins were found
+  if (nrow(sub_all) == 0) {
+    cat(sprintf("  No bins for %s — skipping.\n", trans_name))
+    next
+  }
+
+  cat(sprintf("  %s (whole): %d bins across %d chromosome region(s) (%s)\n",
+              trans_name,
+              nrow(sub_all),
+              nrow(regions),
+              paste(axes, collapse = " + ")))
+
+  # Count bins by path
+  if (is_wt_c1_only) {
+    flow <- count(sub_all, MCF10A_WT.state, MCF10A_C1.state)
+  } else {
+    flow <- count(sub_all,
+                  MCF10A_WT.state, MCF10A_T1.state, MCF10A_C1.state)
+  }
+
+  # Build the plot title
   plot_title <- paste0(trans_name, " (whole translocation)")
-  p <- build_alluvial_plot(flow, title = plot_title, axes = axes,
-                           subcomp_colors = subcomp_colors)
-  save_plot(p, plot_title, OUTPUT_DIR, PLOT_WIDTH, PLOT_HEIGHT, PLOT_DPI)
+
+  # Build and save the plot
+  p <- build_alluvial_plot(flow, title = plot_title, axes = axes)
+  save_plot(p, plot_title)
 }
 
-cat("\nDone. All plots saved to:", OUTPUT_DIR, "\n")
+# Done!
+cat("\nDone! All plots saved to:", OUTPUT_DIR, "\n")
