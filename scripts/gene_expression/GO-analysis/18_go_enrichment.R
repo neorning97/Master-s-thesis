@@ -2,100 +2,110 @@
 # 18_go_enrichment.R
 # ============================================================================
 #
-# What this script does
-# ---------------------
-# Runs Gene Ontology (GO) enrichment analysis on the differentially expressed
-# translocated genes identified in scripts 16/17, and produces dot plots
-# showing the most significantly enriched biological processes.
+# This script runs Gene Ontology (GO) enrichment analysis on the
+# differentially expressed translocated genes.
 #
-# GO enrichment analysis asks: given a list of genes of interest (here,
-# differentially expressed genes in translocated regions), which biological
-# processes are represented more often than expected by chance?
+# What's GO enrichment?
+# - "GO" = Gene Ontology, a giant database that labels every gene with
+#   the biological processes it's involved in (e.g. "cell division",
+#   "immune response").
+# - Given a list of "interesting" genes (here, the ones differentially
+#   expressed in translocated regions), enrichment analysis asks:
+#   "Are any biological processes showing up MORE often in this list
+#   than we'd expect by chance?"
+# - If yes, that suggests the translocation specifically affects those
+#   processes.
 #
-# For each condition (T1, C1), the script:
-# 1. Loads the ranked gene tables produced by script 16 or 17 (up- and
-#    downregulated translocated genes separately).
-# 2. Combines up- and downregulated genes into a single list per condition.
-# 3. Converts HGNC gene symbols to Entrez IDs, which are required by
-#    clusterProfiler.
-# 4. Runs GO enrichment for Biological Process (BP) ontology using a
-#    hypergeometric test with Benjamini-Hochberg multiple testing correction.
-# 5. Saves a dot plot showing the top 10 enriched GO terms per condition.
+# What this script does:
+# 1. Loads the up- and down-regulated translocated gene lists (from
+#    script 16 or 17).
+# 2. Combines up + down into one big list per condition.
+# 3. Converts gene names (like "ABC1") to Entrez IDs (like "12345"),
+#    because the GO analysis package needs Entrez IDs.
+# 4. Runs GO enrichment for "Biological Process" (BP), the most
+#    commonly used type.
+# 5. Saves a dot plot showing the top enriched GO terms.
 #
-# Why combine up and down?
-# ------------------------
-# Combining up- and downregulated genes gives a broader picture of which
-# biological processes are affected by the translocation overall. 
+# Why combine up and down into one list?
+# - The hypothesis is that the translocation broadly disrupts certain
+#   biological processes. We don't really care if a gene went up or down,
+#   as long as it changed.
 #
-# Why Biological Process (BP)?
-# ----------------------------
-# The three GO ontologies are Biological Process (BP), Molecular Function
-# (MF), and Cellular Component (CC). BP is the most commonly used in
-# transcriptomic studies because it describes higher-level biological
-# pathways and processes, which are more interpretable in the context of
-# cancer biology than molecular function or subcellular localisation.
+# What's BP?
+# - GO has 3 ontologies: BP (Biological Process), MF (Molecular Function),
+#   CC (Cellular Component).
+# - BP = "what biological process is this gene involved in?"
+# - MF = "what does the protein do at a molecular level?"
+# - CC = "where in the cell is the protein found?"
+# - BP is usually the most informative for cancer biology questions.
 #
-# Why BH correction?
-# ------------------
-# With thousands of GO terms tested simultaneously, many will appear
-# significant by chance. Benjamini-Hochberg (BH) correction controls the
-# false discovery rate (FDR), ensuring that at most 5% of called enrichments
-# are expected to be false positives.
+# What's BH correction?
+# - When testing thousands of GO terms, some will look "significant" just
+#   by chance (false positives).
+# - BH (Benjamini-Hochberg) correction adjusts the p-values so we control
+#   the false discovery rate (FDR) at 5%.
+# - This means: of all the GO terms we call enriched, we expect at most
+#   5% to be false positives.
 #
-# Usage
-# -----
-#   1. Run scripts 16 or 17 first to generate the input gene tables.
-#   2. Edit the CONFIG section below to point to your files.
-#   3. Run: Rscript 18_go_enrichment.R
-#      or source the script from RStudio.
+# Run scripts 16 or 17 first to make the gene lists.
+# Then edit the file paths and run this script.
 #
-# Dependencies
-# ------------
-#   clusterProfiler, org.Hs.eg.db, ggplot2  (Bioconductor)
-#   Install with:
-#     if (!requireNamespace("BiocManager", quietly = TRUE))
-#       install.packages("BiocManager")
-#     BiocManager::install(c("clusterProfiler", "org.Hs.eg.db"))
-#     install.packages("ggplot2")
-#
+# Required packages: clusterProfiler, org.Hs.eg.db, ggplot2 (Bioconductor)
+# Install with:
+#   if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+#   BiocManager::install(c("clusterProfiler", "org.Hs.eg.db"))
+#   install.packages("ggplot2")
 # ============================================================================
 
 
 # ============================================================================
-# CONFIG – edit all paths and settings here before running
+# CONFIG SECTION - Edit these settings before running
 # ============================================================================
 
-# Input gene tables — TSV files with a 'gene_name' column.
-# These are the ranked gene tables exported by scripts 16.
-# Point to the up- and downregulated files for each condition.
-INPUT_FILES <- list(
-  T1_up   = "/path/to/all_up_transloc_genes_WT_vs_T1.tsv",
-  T1_down = "/path/to/all_down_transloc_genes_WT_vs_T1.tsv",
-  C1_up   = "/path/to/all_up_transloc_genes_WT_vs_C1.tsv",
-  C1_down = "/path/to/all_down_transloc_genes_WT_vs_C1.tsv"
-)
+# -----------------------------------------------------------------------------
+# Input gene lists (from scripts 16 or 17)
+# -----------------------------------------------------------------------------
+# These TSV files must have a "gene_name" column.
+# We need 4 files: up + down for both T1 and C1.
+T1_UP_FILE   <- "/path/to/all_up_transloc_genes_WT_vs_T1.tsv"
+T1_DOWN_FILE <- "/path/to/all_down_transloc_genes_WT_vs_T1.tsv"
+C1_UP_FILE   <- "/path/to/all_up_transloc_genes_WT_vs_C1.tsv"
+C1_DOWN_FILE <- "/path/to/all_down_transloc_genes_WT_vs_C1.tsv"
 
-# Where to save the output dot plots (created automatically)
+# -----------------------------------------------------------------------------
+# Output folder for the dot plots
+# -----------------------------------------------------------------------------
 OUTPUT_DIR <- "/path/to/results/plots"
 
-# Number of top GO terms to show in each dot plot
+# -----------------------------------------------------------------------------
+# How many top GO terms to show in each plot
+# -----------------------------------------------------------------------------
 TOP_N_CATEGORIES <- 10
 
-# GO ontology to use:
-#   "BP" = Biological Process (recommended — describes biological pathways)
-#   "MF" = Molecular Function (describes what the gene product does)
-#   "CC" = Cellular Component (describes where the gene product is located)
+# -----------------------------------------------------------------------------
+# Which GO ontology to use
+# -----------------------------------------------------------------------------
+# Options:
+#   "BP" = Biological Process (most common for cancer biology)
+#   "MF" = Molecular Function
+#   "CC" = Cellular Component
 GO_ONTOLOGY <- "BP"
 
-# Adjusted p-value threshold for calling a GO term enriched
+# -----------------------------------------------------------------------------
+# Adjusted p-value cutoff for calling a GO term enriched
+# -----------------------------------------------------------------------------
+# Standard cutoff is 0.05 (= 5% false discovery rate)
 PADJ_CUTOFF <- 0.05
-
-# ============================================================================
 
 
 # ============================================================================
 # Load libraries
 # ============================================================================
+# clusterProfiler does the GO enrichment analysis.
+# org.Hs.eg.db is the human gene annotation database (needed to look up
+# what GO terms each gene belongs to).
+# ggplot2 is for making plots.
 
 library(clusterProfiler)
 library(org.Hs.eg.db)
@@ -105,121 +115,247 @@ library(ggplot2)
 # ============================================================================
 # Helper function: read gene names from a TSV file
 # ============================================================================
+# All four input files have the same format, a "gene_name" column.
+# This little helper just reads the file and pulls out that column.
 
 read_gene_names <- function(file_path) {
-  # Read the file and extract the gene_name column.
-  # The input files are the ranked gene tables from scripts 16/17, which
-  # always include a 'gene_name' column with HGNC gene symbols.
+
+  # Read the tab-separated file
   df <- read.table(file_path, header = TRUE, sep = "\t")
+
+  # Return just the gene_name column (a vector of names)
   return(df$gene_name)
 }
 
 
 # ============================================================================
-# Main analysis
+# Step 1: Make sure the output folder exists
 # ============================================================================
 
+# showWarnings = FALSE means: don't warn if the folder already exists
+# recursive = TRUE means: also create parent folders if needed
 dir.create(OUTPUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-# ── Load gene lists per condition ─────────────────────────────────────────────
+
+# ============================================================================
+# Step 2: Load the gene lists
+# ============================================================================
+
 cat("Loading gene lists...\n")
 
-T1_up_genes   <- read_gene_names(INPUT_FILES$T1_up)
-T1_down_genes <- read_gene_names(INPUT_FILES$T1_down)
-C1_up_genes   <- read_gene_names(INPUT_FILES$C1_up)
-C1_down_genes <- read_gene_names(INPUT_FILES$C1_down)
+# Read each file
+T1_up_genes   <- read_gene_names(T1_UP_FILE)
+T1_down_genes <- read_gene_names(T1_DOWN_FILE)
+C1_up_genes   <- read_gene_names(C1_UP_FILE)
+C1_down_genes <- read_gene_names(C1_DOWN_FILE)
 
-# Combine up- and downregulated genes per condition.
-# unique() removes any genes that appear in both lists.
+# -----------------------------------------------------------------------------
+# Combine up + down genes per condition
+# -----------------------------------------------------------------------------
+# c() concatenates vectors (like Python's list +).
+# unique() removes duplicates (in case some genes appear in both up and down).
+
+T1_all_genes <- unique(c(T1_up_genes, T1_down_genes))
+C1_all_genes <- unique(c(C1_up_genes, C1_down_genes))
+
+# Group them in a list so we can loop through them later.
+# A "list" in R is like a Python dict, it can hold named values.
 gene_lists <- list(
-  T1 = unique(c(T1_up_genes, T1_down_genes)),
-  C1 = unique(c(C1_up_genes, C1_down_genes))
+  T1 = T1_all_genes,
+  C1 = C1_all_genes
 )
 
-cat(sprintf("  T1: %d genes total (%d up, %d down)\n",
-            length(gene_lists$T1), length(T1_up_genes), length(T1_down_genes)))
-cat(sprintf("  C1: %d genes total (%d up, %d down)\n",
-            length(gene_lists$C1), length(C1_up_genes), length(C1_down_genes)))
+# Print a summary
+# sprintf is like Python's format, %d is an integer placeholder.
+cat(sprintf(
+  "  T1: %d genes total (%d up, %d down)\n",
+  length(T1_all_genes),
+  length(T1_up_genes),
+  length(T1_down_genes)
+))
+cat(sprintf(
+  "  C1: %d genes total (%d up, %d down)\n",
+  length(C1_all_genes),
+  length(C1_up_genes),
+  length(C1_down_genes)
+))
 
-# ── Convert HGNC symbols to Entrez IDs ───────────────────────────────────────
-# clusterProfiler requires Entrez IDs rather than gene symbols.
-# bitr() performs the conversion using the human annotation database
-# (org.Hs.eg.db). Genes that cannot be mapped are automatically dropped
-# with a warning — this is normal for a small fraction of gene symbols.
+
+# ============================================================================
+# Step 3: Convert gene SYMBOLS to Entrez IDs
+# ============================================================================
+# Why?
+# - Our input gene lists use HGNC symbols (like "TP53", "ABC1").
+# - clusterProfiler's GO functions need Entrez IDs (like "7157", "999").
+# - bitr() ("Biological ID Translator") does this conversion using the
+#   org.Hs.eg.db database.
+# - It's normal for some genes to not be mapped, bitr drops them and
+#   prints a warning.
+
 cat("\nConverting gene symbols to Entrez IDs...\n")
 
-entrez_lists <- lapply(names(gene_lists), function(cond) {
-  genes   <- gene_lists[[cond]]
-  mapped  <- bitr(genes,
-                  fromType = "SYMBOL",
-                  toType   = "ENTREZID",
-                  OrgDb    = org.Hs.eg.db)
-  cat(sprintf("  %s: %d/%d genes successfully mapped to Entrez IDs\n",
-              cond, nrow(mapped), length(genes)))
-  return(mapped)
-})
-names(entrez_lists) <- names(gene_lists)
+# Empty list, we'll fill it with one mapping table per condition
+entrez_lists <- list()
+
+# names(gene_lists) gives us the keys: c("T1", "C1")
+for (cond in names(gene_lists)) {
+
+  # Get the gene names for this condition
+  genes <- gene_lists[[cond]]
+
+  # Convert symbols to Entrez IDs
+  # bitr returns a data frame with two columns: SYMBOL and ENTREZID
+  mapped <- bitr(
+    genes,
+    fromType = "SYMBOL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  )
+
+  # Print how many were successfully mapped
+  cat(sprintf(
+    "  %s: %d/%d genes successfully mapped to Entrez IDs\n",
+    cond,
+    nrow(mapped),
+    length(genes)
+  ))
+
+  # Store the mapping in our list
+  entrez_lists[[cond]] <- mapped
+}
 
 
-# ── Run GO enrichment analysis ────────────────────────────────────────────────
-# enrichGO tests each GO term for over-representation using a hypergeometric
-# test. The genome-wide gene set in org.Hs.eg.db serves as the background.
-# Results are filtered to terms with padj < PADJ_CUTOFF after BH correction.
+# ============================================================================
+# Step 4: Run GO enrichment analysis
+# ============================================================================
+# enrichGO does the actual statistical test:
+# - For each GO term, it counts how many of OUR genes are in that term.
+# - It compares that to how many genes from the GENOME are in that term.
+# - It uses a hypergeometric test to ask: "Is our count higher than expected
+#   by chance?"
+# - It then applies BH correction across all GO terms tested.
+
 cat(sprintf("\nRunning GO enrichment (ontology: %s)...\n", GO_ONTOLOGY))
 
-go_results <- lapply(names(entrez_lists), function(cond) {
-  df  <- entrez_lists[[cond]]
+# Empty list, we'll fill it with one enrichment result per condition
+go_results <- list()
+
+for (cond in names(entrez_lists)) {
+
+  # Get the Entrez IDs for this condition
+  df <- entrez_lists[[cond]]
+
+  # Run the enrichment analysis
   ego <- enrichGO(
-    gene          = df$ENTREZID,
-    OrgDb         = org.Hs.eg.db,
-    ont           = GO_ONTOLOGY,
-    pAdjustMethod = "BH",
-    pvalueCutoff  = PADJ_CUTOFF,
-    readable      = TRUE   # converts Entrez IDs back to gene symbols in output
+    gene = df$ENTREZID,        # our genes of interest
+    OrgDb = org.Hs.eg.db,      # the annotation database
+    ont = GO_ONTOLOGY,         # which ontology (BP, MF, or CC)
+    pAdjustMethod = "BH",      # multiple testing correction method
+    pvalueCutoff = PADJ_CUTOFF, # only keep terms below this padj
+    readable = TRUE            # convert Entrez IDs back to gene names
+                               # in the output (much easier to read)
   )
-  n_terms <- if (!is.null(ego)) nrow(ego) else 0
+
+  # ego could be NULL if no enrichment was found.
+  # The if/else here handles both cases.
+  if (is.null(ego)) {
+    n_terms <- 0
+  } else {
+    n_terms <- nrow(ego)
+  }
+
   cat(sprintf("  %s: %d enriched GO terms found\n", cond, n_terms))
-  return(ego)
-})
-names(go_results) <- names(entrez_lists)
+
+  # Store the result
+  go_results[[cond]] <- ego
+}
 
 
-# ── Save dot plots ────────────────────────────────────────────────────────────
-# A dot plot shows the top enriched GO terms on the y-axis.
-# The x-axis shows gene ratio (fraction of input genes in the GO term).
-# Dot size represents the number of genes, dot colour represents padj.
+# ============================================================================
+# Step 5: Make and save dot plots
+# ============================================================================
+# A dot plot shows GO terms on the y-axis.
+# - X-axis: "gene ratio" (what fraction of our input genes are in this term)
+# - Dot size: how many of our genes are in this term
+# - Dot colour: the adjusted p-value (more significant = different colour)
+
 cat("\nSaving GO dot plots...\n")
 
+# Loop through each condition's results
 for (cond in names(go_results)) {
+
   ego <- go_results[[cond]]
-  
-  # Skip if no enriched terms were found
+
+  # ---------------------------------------------------------------------------
+  # Skip if there are no enriched terms
+  # ---------------------------------------------------------------------------
+  # message() prints to stderr (the console), similar to cat() but
+  # marked as a "message" not regular output.
   if (is.null(ego) || nrow(ego) == 0) {
     message(sprintf("  No enriched GO terms for %s — skipping plot.", cond))
-    next
+    next   # skip to the next iteration (like Python's continue)
   }
-  
+
+  # ---------------------------------------------------------------------------
+  # Make the dot plot
+  # ---------------------------------------------------------------------------
+  # dotplot() is from clusterProfiler, it knows how to make a nice
+  # dot plot from an enrichGO result object.
+  # showCategory = how many top terms to show.
+  # We add a title and centre it using ggplot2's theme() function.
+  # The + here is ggplot2's way of adding layers to a plot.
   p <- dotplot(ego, showCategory = TOP_N_CATEGORIES) +
     ggtitle(sprintf("%s — GO %s enrichment", cond, GO_ONTOLOGY)) +
     theme(plot.title = element_text(face = "bold", hjust = 0.5))
-  
-  out_path <- file.path(OUTPUT_DIR, sprintf("%s_GO_%s_dotplot.png", cond, GO_ONTOLOGY))
-  ggsave(out_path, plot = p, width = 8, height = 6, dpi = 300)
+
+  # ---------------------------------------------------------------------------
+  # Build the output path and save
+  # ---------------------------------------------------------------------------
+  filename <- sprintf("%s_GO_%s_dotplot.png", cond, GO_ONTOLOGY)
+  out_path <- file.path(OUTPUT_DIR, filename)
+
+  # ggsave saves a ggplot to a file
+  ggsave(
+    out_path,
+    plot = p,
+    width = 8,
+    height = 6,
+    dpi = 300
+  )
+
   cat(sprintf("  Saved: %s\n", out_path))
 }
 
 
-# ── Print top results to terminal ─────────────────────────────────────────────
+# ============================================================================
+# Step 6: Print the top GO terms to the terminal
+# ============================================================================
+# This gives us a quick text view of the results without having to open
+# the dot plots.
+
 cat("\nTop GO terms per condition:\n")
+
 for (cond in names(go_results)) {
+
   ego <- go_results[[cond]]
+
   cat(sprintf("\n%s:\n", cond))
-  if (!is.null(ego) && nrow(ego) > 0) {
-    print(head(ego@result[, c("Description", "GeneRatio", "p.adjust")],
-               n = TOP_N_CATEGORIES))
-  } else {
+
+  # If there's no result, just say so
+  if (is.null(ego) || nrow(ego) == 0) {
     cat("  No significant enrichment.\n")
+    next
   }
+
+  # Show only the columns we care about: Description, GeneRatio, p.adjust.
+  # ego@result is the data frame inside the ego object.
+  # The @ syntax is R's way of accessing slots in S4 objects (a special
+  # type of object).
+  result_subset <- ego@result[, c("Description", "GeneRatio", "p.adjust")]
+
+  # head() returns the first n rows
+  print(head(result_subset, n = TOP_N_CATEGORIES))
 }
 
-cat("\nDone.\n")
+# Done!
+cat("\nDone!\n")
