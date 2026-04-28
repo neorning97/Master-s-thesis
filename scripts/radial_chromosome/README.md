@@ -33,7 +33,7 @@ of the t(3;17) translocation:
 
 ## Overview
 
-This is a single self-contained script that produces five plots and a
+This is a single self-contained script that produces two plots and a
 statistics table.
 
 | Script | What it does | Input | Output |
@@ -71,7 +71,7 @@ chrom   start   end   label   transloc_id
 ```
 
 `transloc_id` values (e.g. T1, T2, T3) must match the keys in the
-`transloc_name_maps` CONFIG setting.
+`T1_NAME_MAP` and `C1_NAME_MAP` settings.
 
 ### CMM file format
 
@@ -92,45 +92,53 @@ represents one genomic bead. Only `beadID`, `x`, `y`, and `z` are used;
 
 ## How to run
 
-### Step 1 — Edit the CONFIG block
+### Step 1 — Edit the CONFIG section
 
-Open `09_nuclear_radial_positioning.py` and edit the `CONFIG` dictionary at
-the top. Key settings to update:
+Open `09_nuclear_radial_positioning.py` and edit the variables in the
+`CONFIG SECTION` near the top of the script:
 
 ```python
-CONFIG = {
-    "cmm_dirs": {
-        "WT": "/path/to/cmm/WT",
-        "T1": "/path/to/cmm/T1",
-        "C1": "/path/to/cmm/C1",
-    },
-    "transloc_beds": {
-        "T1": "/path/to/verify_T1_translocations.bed",
-        "C1": "/path/to/verify_C1_translocations.bed",
-    },
-    # Maps transloc_id values in your BED to human-readable segment names
-    "transloc_name_maps": {
-        "T1": {"T1": "Der(17)t(3;17)", "T2": "Der(3)t(3;17)", "T3": "t(6;19)"},
-        "C1": {"T1": "t(2;10)", "T2": "Der(17)t(3;17)", ...},
-    },
-    # One colour per segment label
-    "segment_colors": {
-        "Der(3)t(3;17)":          "#e41a1c",
-        "Der(17)t(3;17)":         "#2171b5",
-        "t(6;19)":                "#756bb1",
-        "t(2;10)":                "#31a354",
-        "chr3":                   "#e41a1c",
-        "chr17":                  "#2171b5",
-        "chr3 fragment in Der(17)":  "#fd8d3c",
-        "chr17 fragment in Der(3)":  "#31a354",
-    },
-    "output_dir": "/path/to/results/nuclear_positioning",
+# Folders containing the 3D model files (.cmm) for each condition
+WT_CMM_FOLDER = "/path/to/cmm/WT"
+T1_CMM_FOLDER = "/path/to/cmm/T1"
+C1_CMM_FOLDER = "/path/to/cmm/C1"
+
+# BED files describing the translocated segments
+T1_BED_FILE = "/path/to/verify_T1_translocations.bed"
+C1_BED_FILE = "/path/to/verify_C1_translocations.bed"
+
+# Maps transloc_id values in the BED files to readable segment names
+T1_NAME_MAP = {
+    "T1": "Der(17)t(3;17)",
+    "T2": "Der(3)t(3;17)",
+    "T3": "t(6;19)",
 }
+C1_NAME_MAP = {
+    "T1": "t(2;10)",
+    "T2": "Der(17)t(3;17)",
+    "T3": "Der(3)t(3;17)",
+    "T4": "t(6;19)",
+}
+
+# One colour per segment label (hex codes)
+segment_colors = {
+    "Der(3)t(3;17)":             "#e41a1c",
+    "Der(17)t(3;17)":            "#2171b5",
+    "t(6;19)":                   "#756bb1",
+    "t(2;10)":                   "#31a354",
+    "chr3":                      "#e41a1c",
+    "chr17":                     "#2171b5",
+    "chr3 fragment in Der(17)":  "#fd8d3c",
+    "chr17 fragment in Der(3)":  "#31a354",
+}
+
+# Where to save all the output files
+OUTPUT_FOLDER = "/path/to/results/plots/nuclear_positioning"
 ```
 
-The `transloc_name_maps` must match the `transloc_id` column values in your
-BED files. Check these by opening the BED file and reading the `transloc_id`
-column.
+The keys in `T1_NAME_MAP` and `C1_NAME_MAP` must match the `transloc_id`
+column values in your BED files. Check these by opening the BED file and
+reading the `transloc_id` column.
 
 ### Step 2 — Run the script
 
@@ -180,13 +188,15 @@ which is then used for statistical testing. This avoids pseudoreplication
 (treating each bead as an independent observation when they are all from the
 same model).
 
-**Why Wilcoxon signed-rank test?**
-The test is applied to per-model mean radial distances paired by model index.
-Pairing by model means we are asking: in the same structural ensemble (same
-model number), is the radial position systematically larger or smaller in
-one condition vs another? This controls for model-to-model variation in
-overall chromosome positioning. The Wilcoxon test is used rather than a
-paired t-test because the distributions are not assumed to be normal.
+**Why Wilcoxon signed-rank instead of a t-test or Mann-Whitney U?**
+The radial distance distributions are not assumed to be normal, which rules
+out a paired t-test. Mann-Whitney U is also inappropriate here because it
+treats the two groups as independent, but in this analysis there *is* a
+natural pairing: each model in WT is matched by index to the same-numbered
+model in T1 and C1, so we can ask "in this particular structural ensemble,
+did the segment move?" The Wilcoxon signed-rank test is the correct
+non-parametric choice for paired data, testing whether the median per-model
+difference is significantly different from zero.
 
 **Model pairing**
 Models are paired by their sorted filename order (model_0000, model_0001, ...),
