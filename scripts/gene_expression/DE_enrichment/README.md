@@ -16,15 +16,15 @@ differential expression than genes from elsewhere in the genome.
 
 This script tests two related hypotheses:
 
-1. **DE enrichment** — Are genes in translocated regions more often
+1. **DE enrichment**: Are genes in translocated regions more often
    differentially expressed (up or down) than all other genes in the genome?
 
-2. **Up/Down bias** — Among differentially expressed genes, are translocated
+2. **Up/Down bias**: Among differentially expressed genes, are translocated
    genes more often upregulated than the genome background? This would be
    consistent with translocation into a more active chromatin environment.
 
 The control group is simply all genes in the DESeq2 results table that are
-not in any translocated region — i.e. the whole-genome background.
+not in any translocated region, i.e. the whole-genome background.
 
 ---
 
@@ -84,17 +84,23 @@ build the list of translocated gene names.
 
 ### Step 1 — Edit the CONFIG section
 
+Edit the variables in the `CONFIG SECTION` near the top of
+`15_de_enrichment.py`:
+
 ```python
-CONFIG = {
-    "dist_file": "/path/to/results/WT_distances_agg.tsv",
-    "de_files": {
-        "T1": "/path/to/results/DE_WT_vs_T1.tsv",
-        "C1": "/path/to/results/DE_WT_vs_C1.tsv",
-    },
-    "lfc_threshold":  1.0,    # |log2FoldChange| must exceed this
-    "padj_threshold": 0.05,   # adjusted p-value threshold
-    "output_dir":     "/path/to/results/de_enrichment",
-}
+# Distance table from scripts 01-04 (used only to get translocated gene names)
+DIST_FILE = "/path/to/results/WT_distances_agg.tsv"
+
+# DESeq2 result files (from script 13)
+T1_DE_FILE = "/path/to/results/DE_WT_vs_T1.tsv"
+C1_DE_FILE = "/path/to/results/DE_WT_vs_C1.tsv"
+
+# Thresholds for calling a gene differentially expressed
+LFC_THRESHOLD = 1.0       # |log2FoldChange| must exceed this
+PADJ_THRESHOLD = 0.05     # adjusted p-value threshold
+
+# Output folder
+OUTPUT_FOLDER = "/path/to/results/de_enrichment"
 ```
 
 ### Step 2 — Run
@@ -145,12 +151,16 @@ T1
 
 ## Design decisions
 
-**Why Fisher's exact test?**
-The analysis compares two gene groups using a 2x2 contingency table. Fisher's
-exact test is used rather than chi-square because the translocated gene group
-is typically small (~100–500 genes), and chi-square requires sufficiently
-large expected counts in all cells. Fisher's test is exact and does not rely
-on this assumption.
+**Why Fisher's exact test rather than chi-square, Wilcoxon, or Mann-Whitney U?**
+The analysis compares two gene groups using a 2x2 contingency table of
+counts (DE vs not DE, or Up vs Down). This is fundamentally count data in
+categories, so Wilcoxon and Mann-Whitney U don't apply, those tests work
+on continuous distributions, not on counts of items falling into discrete
+categories. Chi-square would also be appropriate in principle, but it
+requires sufficiently large expected counts in all cells, and the
+translocated gene group is typically small. Fisher's exact
+test is exact (computes p-values without that approximation) and gives
+trustworthy results even when one of the groups is small.
 
 **Why two tests?**
 The DE enrichment test (DE vs No change) and the Up/Down bias test answer
