@@ -9,7 +9,7 @@ genome-wide background.
 
 ## Biological background
 
-Chromatin subcompartments (A1, A2, B1, B2, B3) reflect the transcriptional
+Chromatin subcompartments (A1, A2, A3, B1, B2, B3) reflect the transcriptional
 and epigenetic state of genomic regions. A-compartment regions are generally
 transcriptionally active, while B-compartment regions are generally inactive.
 
@@ -17,12 +17,12 @@ When a chromosomal translocation moves a segment of DNA onto a new chromosome,
 it places that segment in a new chromatin environment. There are three possible
 outcomes for each 100 kb bin in the translocated region:
 
-- **Retained** — the bin keeps the same subcompartment state it had in the
+- **Retained**: the bin keeps the same subcompartment state it had in the
   wildtype. The translocation did not change its chromatin identity.
-- **Adopted** — the bin switches to match the dominant subcompartment state
+- **Adopted**: the bin switches to match the dominant subcompartment state
   of its new chromosomal neighborhood. It has taken on the identity of its
   new environment.
-- **Other** — the bin changed subcompartment, but not to the dominant state
+- **Other**: the bin changed subcompartment, but not to the dominant state
   of the new neighborhood.
 
 The "adopted" category is of particular biological interest: a high adoption
@@ -37,7 +37,7 @@ This is a single self-contained script.
 
 | Script | What it does | Input | Output |
 |--------|-------------|-------|--------|
-| `10_subcompartment_classification.py` | Classifies translocated bins as retained/adopted/other at subcompartment and A/B levels; runs binomial tests against a genome-wide control | Subcompartment bedGraph, translocation BED files, neighbor BED files | 3 plots per condition + `bins_annotation.csv` + `all_binomial_stats.csv` |
+| `10_subcompartment_classification.py` | Classifies translocated bins as retained/adopted/other at subcompartment and A/B levels; runs binomial tests against a genome-wide control | Subcompartment bedGraph, translocation BED files, neighbor BED files | 6 plots (3 per condition) + `bins_annotation.csv` + `all_binomial_stats.csv` |
 
 ---
 
@@ -67,7 +67,7 @@ pip install pandas numpy matplotlib scipy
 
 Tab-separated with one row per 100 kb bin. Must include columns named
 `MCF10A_WT.state`, `MCF10A_T1.state`, and `MCF10A_C1.state` containing
-subcompartment labels such as A1, A2, B1, B2, B3.
+subcompartment labels such as A1, A2, A3, B1, B2, B3.
 
 ### Translocation BED format
 
@@ -77,44 +77,53 @@ Tab-separated, must include at least:
 chrom   start   end   label   transloc_id
 ```
 
-`transloc_id` values must match the keys in `transloc_name_maps` in CONFIG.
+`transloc_id` values must match the keys in `T1_NAME_MAP` and `C1_NAME_MAP`
+in the CONFIG section.
 
 ---
 
 ## How to run
 
-### Step 1 — Edit the CONFIG block
+### Step 1 — Edit the CONFIG section
 
-Open `10_subcompartment_classification.py` and edit the `CONFIG` dictionary
-at the top:
+Open `10_subcompartment_classification.py` and edit the variables in the
+`CONFIG SECTION` near the top of the script:
 
 ```python
-CONFIG = {
-    "subcompartment_file": "/path/to/subcompartments.bedGraph",
-    "transloc_beds": {
-        "T1": "/path/to/verify_T1_translocations.bed",
-        "C1": "/path/to/verify_C1_translocations.bed",
-    },
-    "neighbor_beds": {
-        "T1": {
-            "new": "/path/to/verify_T1_neighbor.bed",
-            "old": "/path/to/verify_T1_neighbor_originchr.bed",
-        },
-        "C1": {
-            "new": "/path/to/verify_C1_neighbor.bed",
-            "old": "/path/to/verify_C1_neighbor_originchr.bed",
-        },
-    },
-    "transloc_name_maps": {
-        "T1": {"T1": "Der(17)t(3;17)", "T2": "Der(3)t(3;17)", ...},
-        "C1": {"T1": "t(2;10)", "T2": "Der(17)t(3;17)", ...},
-    },
-    "output_dir": "/path/to/results/subcompartment_classification",
+# Subcompartment annotations
+SUBCOMPARTMENT_FILE = "/path/to/subcompartments.bedGraph"
+
+# Translocation BED files
+T1_TRANSLOC_BED = "/path/to/verify_T1_translocations.bed"
+C1_TRANSLOC_BED = "/path/to/verify_C1_translocations.bed"
+
+# Neighbor BED files
+# - "new" neighbor: where the translocated piece ENDED UP
+# - "old" neighbor: where the translocated piece CAME FROM
+T1_NEW_NEIGHBOR = "/path/to/verify_T1_neighbor.bed"
+T1_OLD_NEIGHBOR = "/path/to/verify_T1_neighbor_originchr.bed"
+C1_NEW_NEIGHBOR = "/path/to/verify_C1_neighbor.bed"
+C1_OLD_NEIGHBOR = "/path/to/verify_C1_neighbor_originchr.bed"
+
+# Maps from transloc_id (in BED files) to readable names for plot labels
+T1_NAME_MAP = {
+    "T1": "Der(17)t(3;17)",
+    "T2": "Der(3)t(3;17)",
+    "T3": "t(6;19)",
 }
+C1_NAME_MAP = {
+    "T1": "t(2;10)",
+    "T2": "Der(17)t(3;17)",
+    "T3": "Der(3)t(3;17)",
+    "T4": "t(6;19)",
+}
+
+# Output folder
+OUTPUT_FOLDER = "/path/to/results/subcompartment_classification"
 ```
 
-The `transloc_name_maps` must match the `transloc_id` column in your BED
-files. Check by opening a BED file and reading that column.
+The keys in `T1_NAME_MAP` and `C1_NAME_MAP` must match the `transloc_id`
+column in your BED files. Check by opening a BED file and reading that column.
 
 ### Step 2 — Run the script
 
@@ -132,7 +141,7 @@ Six plots are produced in total, three per condition (T1 and C1):
 
 | File | Description |
 |------|-------------|
-| `T1_subcompartment.png` | Fraction of bins retained/adopted/other at full subcompartment resolution (A1, A2, B1, B2, B3) |
+| `T1_subcompartment.png` | Fraction of bins retained/adopted/other at full subcompartment resolution (A1, A2, A3, B1, B2, B3) |
 | `T1_collapsed.png` | Same at collapsed A/B level |
 | `T1_direction.png` | Fraction of bins switching A->B, B->A, or retained |
 | `C1_subcompartment.png` | Same plots for C1 |
@@ -167,9 +176,21 @@ majority of its new neighbors, it is most likely being shaped by local
 chromatin propagation mechanisms (e.g. spreading of histone modifications),
 rather than changing at random.
 
+**Why a binomial test instead of Wilcoxon or Mann-Whitney U?**
+The data here is fundamentally different from the distance analyzes in
+scripts 05–09. There, each gene or model produced a continuous distance
+value, and we asked whether two distributions of distances were different.
+Here, each bin produces a categorical label ("retained", "adopted", or
+"other"), and we are counting *how many* bins fall into each category. The
+question becomes: out of *N* total bins, *K* were classified as adopted,
+is *K* larger than we'd expect given the genome-wide background rate? That
+is exactly what a binomial test is designed to answer. Wilcoxon and
+Mann-Whitney U operate on continuous values and cannot be applied to these
+counts directly.
+
 **Why a binomial test against the genome control?**
 The genome-wide control provides the background rate of subcompartment
-switching — i.e. the fraction of all non-translocated bins that change state
+switching, i.e. the fraction of all non-translocated bins that change state
 between WT and the condition. This accounts for the fact that some switching
 happens throughout the genome simply due to noise or cell-line differences
 unrelated to the translocation. The binomial test then asks: is the fraction
@@ -183,8 +204,8 @@ classified as only "retained" or "other". This means the genome control bar
 in each plot has no "adopted" segment, which is expected.
 
 **Collapsed A/B analysis**
-The collapsed analysis reduces the five subcompartment labels to two (A and B)
+The collapsed analysis reduces the six subcompartment labels to two (A and B)
 for a simpler view of large-scale compartment switching. This is useful because
-A1/A2 differences are more subtle than the A/B boundary, and the collapsed
+A1/A2/A3 differences are more subtle than the A/B boundary, and the collapsed
 view is easier to interpret statistically.
 
