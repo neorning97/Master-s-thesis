@@ -1,420 +1,613 @@
 """
 17_translocation_volcano_plots.py
 ===================================
-Script for producing volcano plots with genes from specific translocation
-regions highlighted, and running statistical tests comparing those genes to
-the genome-wide background.
+This script makes volcano plots highlighting genes from SPECIFIC named
+translocations (like Der(17)t(3;17)), and runs statistical tests comparing
+those genes against the rest of the genome.
 
-What this script does
----------------------
-Script 16 highlighted translocated genes identified from the gene-pair
-distance pipeline. This script takes a complementary approach: it defines
-translocated regions directly by their genomic coordinates (from the
-translocation BED files) and uses the GTF annotation to find all genes
-overlapping those regions. This allows analysis of specific named
-translocations (e.g. Der(17)t(3;17), Der(3)t(3;17)) independently.
+How is this different from script 16?
+- Script 16 highlights translocated genes that came from the distance pipeline.
+- This script lets you define translocation regions DIRECTLY by their
+  genomic coordinates (chromosome + start + end), and finds all genes inside.
+- This is useful for analysing each named translocation separately
+  (e.g. only Der(17)t(3;17), only Der(3)t(3;17)).
 
-For each translocation and each condition (T1, C1), the script:
-1. Finds all genes whose coordinates overlap the translocation regions
-   using the GTF annotation.
-2. Loads DESeq2 results and classifies genes as Up, Down, or No change.
-3. Produces a volcano plot with translocation genes highlighted in colour.
-4. Runs two statistical tests:
-     a. DE enrichment Fisher test: are genes in this translocation more
-        often DE than the genome background?
-     b. Up/Down bias Fisher test: among DE genes, are translocation genes
-        more often upregulated?
-5. Exports ranked tables of the top up- and downregulated genes.
+What's a volcano plot?
+- See script 16's docstring for a full explanation.
+- Quick recap: each dot = one gene. X-axis = log2 fold change.
+  Y-axis = -log10(padj). Significant changes shoot up and out to the sides.
 
-Difference from script 16
---------------------------
-Script 16 identifies translocated genes from the distance table produced
-by scripts 01–04. This script identifies them directly from user-defined
-genomic coordinates, making it useful for analysing specific translocation
-events by name rather than relying on the distance pipeline output.
+What this script does for each translocation x condition:
+1. Finds all genes whose coordinates overlap the translocation regions.
+2. Loads the DESeq2 results and labels each gene as Up / Down / No change.
+3. Makes a volcano plot with translocation genes highlighted in colour.
+4. Runs two Fisher's exact tests:
+   a. "DE enrichment": are translocation genes more often DE than other genes?
+   b. "Up/Down bias": among DE genes, do translocation genes lean up vs down?
+5. Exports ranked TSV tables of the top up- and down-regulated genes.
 
-Translocations analysed
-------------------------
-The translocations are defined in CONFIG as a dictionary mapping each
-translocation name to a list of (chromosome, start, end) regions. Each
-translocation can span multiple chromosomal segments (e.g. Der(17)t(3;17)
-involves both the chr3 fragment and the chr17 body).
+Run script 13 first to make the DESeq2 result files.
+Then edit the file paths and translocation regions below.
 
-Usage
------
-    1. Run script 13 (differential expression) first.
-    2. Edit the CONFIG section below to point to your files and define
-       the genomic coordinates of the translocations to analyse.
-    3. Run: python 17_translocation_volcano_plots.py
-
-Dependencies
-------------
-    pandas, numpy, matplotlib, scipy
-    Install with: pip install pandas numpy matplotlib scipy
-
+Required libraries: pandas, numpy, matplotlib, scipy
+Install them with: pip install pandas numpy matplotlib scipy
 """
 
-import os
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.stats import fisher_exact
+import os                              
+import numpy as np                     
+import pandas as pd                   
+import matplotlib.pyplot as plt        
+from scipy.stats import fisher_exact   
 
 
 # =============================================================================
-# CONFIG – edit all paths and settings here before running
+# CONFIG SECTION - Edit these paths and settings before running
 # =============================================================================
-CONFIG = {
-    # DESeq2 results from script 13
-    "de_files": {
-        "T1": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/DE/DE_WT_vs_T1.tsv",
-        "C1": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/DE/DE_WT_vs_C1.tsv",
-    },
 
-    # GTF gene annotation file (Ensembl GRCh38 protein-coding genes)
-    "gtf_file": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf",
+# -----------------------------------------------------------------------------
+# DESeq2 result files (from script 13)
+# -----------------------------------------------------------------------------
+T1_DE_FILE = "/path/to/DE_WT_vs_T1.tsv"
+C1_DE_FILE = "/path/to/DE_WT_vs_C1.tsv"
 
-    # Translocation regions to analyse.
-    # Each key is a human-readable translocation name used in plot titles
-    # and filenames. Each value is a list of (chromosome, start, end) tuples
-    # defining the genomic regions involved. A gene is included if any part
-    # of it overlaps any of the listed regions.
-    "translocations": {
-        "Der(17)t(3;17)": [
-            ("chr3",  0,        58_600_000),   # chr3 fragment
-            ("chr17", 22_700_001, 83_257_441), # chr17 body
-        ],
-        "Der(3)t(3;17)": [
-            ("chr3",  58_600_001, 198_295_559), # chr3 body
-            ("chr17", 0,          22_700_000),  # chr17 fragment
-        ],
-    },
-
-    # Thresholds for calling a gene differentially expressed
-    "lfc_threshold":  1.0,
-    "padj_threshold": 0.05,
-
-    # Number of top genes to label on the plot and export to TSV tables
-    "top_n_labels": 5,
-    "top_n_table":  20,
-
-    # Colours for translocated genes by DE status
-    "colors": {
-        "Up":        "green",
-        "Down":      "red",
-        "No change": "blue",
-    },
-
-    # Where to save all output files (created automatically)
-    "output_dir": "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/results1/translocation_volcano_plots",
+de_files = {
+    "T1": T1_DE_FILE,
+    "C1": C1_DE_FILE,
 }
 
+# -----------------------------------------------------------------------------
+# GTF file with gene coordinates
+# -----------------------------------------------------------------------------
+GTF_FILE = "/path/to/Homo_sapiens.GRCh38.p13.protein_coding_genes.gtf"
+
+# -----------------------------------------------------------------------------
+# Translocation regions to analyse
+# -----------------------------------------------------------------------------
+# This is a dictionary where:
+# - The KEY is a readable name for the translocation (used in plot titles
+#   and filenames).
+# - The VALUE is a list of (chromosome, start, end) tuples, one tuple
+#   per genomic segment that's part of this translocation.
+#
+# Each translocation involves TWO chromosome segments (a fragment + a body),
+# so each list has 2 entries.
+#
+# The underscore in numbers like 58_600_000 is just for readability
+# (Python ignores it). It's like writing 58,600,000.
+
+translocations = {
+    "Der(17)t(3;17)": [
+        ("chr3",  0,          58_600_000),    # the chr3 fragment
+        ("chr17", 22_700_001, 83_257_441),    # the chr17 body
+    ],
+    "Der(3)t(3;17)": [
+        ("chr3",  58_600_001, 198_295_559),   # the chr3 body
+        ("chr17", 0,          22_700_000),    # the chr17 fragment
+    ],
+}
+
+# -----------------------------------------------------------------------------
+# Thresholds for calling a gene differentially expressed
+# -----------------------------------------------------------------------------
+# Same as in scripts 14, 15, 16.
+LFC_THRESHOLD = 1.0
+PADJ_THRESHOLD = 0.05
+
+# -----------------------------------------------------------------------------
+# How many top genes to label and export
+# -----------------------------------------------------------------------------
+TOP_N_LABELS = 5    # how many to label on each plot
+TOP_N_TABLE = 20    # how many to export per TSV file
+
+# -----------------------------------------------------------------------------
+# Colours for translocated genes by DE status
+# -----------------------------------------------------------------------------
+de_colors = {
+    "Up":        "green",
+    "Down":      "red",
+    "No change": "blue",
+}
+
+# -----------------------------------------------------------------------------
+# Output folder
+# -----------------------------------------------------------------------------
+OUTPUT_FOLDER = "/path/to/results/plots/translocation_volcano_plots"
+
+# Conditions we'll process
 CONDITIONS = ["T1", "C1"]
-# =============================================================================
 
 
 # =============================================================================
-# Helper functions
+# Helper function: Load gene coordinates from a GTF file
 # =============================================================================
+# Same as in script 14, read the GTF, keep only "gene" rows, pull the
+# gene_name out of the attributes column.
 
-def load_gtf_genes(gtf_file: str) -> pd.DataFrame:
+def load_gtf_genes(gtf_file):
     """
-    Load a GTF annotation and return one row per gene with columns:
-    chr, start, end, gene_name.
-
-    Only 'gene' feature rows are kept.
+    Load a GTF file and return a DataFrame with one row per gene.
+    Columns: chr, start, end, gene_name
     """
-    gtf_cols = ["chr", "source", "feature", "start", "end",
-                "score", "strand", "frame", "attributes"]
+    # GTF files have 9 columns, we provide names ourselves.
+    column_names = [
+        "chr", "source", "feature", "start", "end",
+        "score", "strand", "frame", "attributes"
+    ]
+
     gtf = pd.read_csv(
-        gtf_file, sep="\t", comment="#", header=None, names=gtf_cols
+        gtf_file,
+        sep="\t",
+        comment="#",
+        header=None,
+        names=column_names
     )
+
+    # Keep only rows where feature is "gene"
     gtf = gtf[gtf["feature"] == "gene"].copy()
+
+    # Extract gene_name from the attributes column.
+    # str.extract with a regex grabs the part inside the parentheses.
     gtf["gene_name"] = gtf["attributes"].str.extract(r'gene_name "([^"]+)"')
-    return gtf[["chr", "start", "end", "gene_name"]].copy()
 
+    # Keep only the columns we need
+    keep_cols = ["chr", "start", "end", "gene_name"]
+    genes = gtf[keep_cols].copy()
 
-def get_transloc_genes(gtf: pd.DataFrame, regions: list[tuple]) -> set:
-    """
-    Return the set of gene names whose coordinates overlap any of the
-    given genomic regions.
-
-    A gene overlaps a region if any part of it falls within [start, end].
-    This is the standard BED-style overlap check.
-
-    Parameters
-    ----------
-    gtf     : GTF DataFrame with columns chr, start, end, gene_name.
-    regions : List of (chromosome, start, end) tuples.
-    """
-    genes = set()
-    for chrom, start, end in regions:
-        overlapping = gtf[
-            (gtf["chr"] == chrom) &
-            (gtf["end"]   >= start) &
-            (gtf["start"] <= end)
-        ]["gene_name"]
-        genes.update(overlapping)
     return genes
 
 
-def classify_de(
-    df: pd.DataFrame,
-    lfc_thresh: float,
-    padj_thresh: float,
-) -> pd.DataFrame:
-    """
-    Add 'DE_status' and '-log10(padj)' columns to a DESeq2 results DataFrame.
+# =============================================================================
+# Helper function: Find all gene names that overlap a list of regions
+# =============================================================================
 
-    Missing padj values are set to 1 (not significant) and exact zeros are
-    replaced with 1e-300 to avoid log(0) errors.
+def get_transloc_genes(gtf, regions):
+    """
+    Find all gene names whose coordinates overlap any of the given
+    (chromosome, start, end) regions. Returns a Python set of names.
+    """
+    # Empty set to start, we'll add gene names to it as we find them
+    genes = set()
+
+    # Loop through each region tuple
+    for chrom, region_start, region_end in regions:
+
+        # Same overlap idea as in earlier scripts:
+        # A gene overlaps if it's on the same chromosome AND
+        # the gene's end is at/after the region's start AND
+        # the gene's start is at/before the region's end.
+        same_chrom = (gtf["chr"] == chrom)
+        ends_after_region_starts = (gtf["end"] >= region_start)
+        starts_before_region_ends = (gtf["start"] <= region_end)
+
+        # Combine with & (AND)
+        mask = same_chrom & ends_after_region_starts & starts_before_region_ends
+
+        # Get the matching gene names
+        matching_names = gtf[mask]["gene_name"]
+
+        # Add them to our set.
+        # set.update() adds all values from a collection.
+        # Since it's a set, duplicates are automatically ignored.
+        genes.update(matching_names)
+
+    return genes
+
+
+# =============================================================================
+# Helper function: Classify each gene as Up / Down / No change
+# =============================================================================
+# Same as in script 16.
+
+def classify_de(df):
+    """
+    Add DE_status (Up/Down/No change) and -log10(padj) columns to a
+    DESeq2 results DataFrame.
     """
     df = df.copy()
-    df["padj"] = df["padj"].fillna(1).replace(0, 1e-300)
+
+    # Handle missing or zero p-values before taking log
+    df["padj"] = df["padj"].fillna(1)
+    df["padj"] = df["padj"].replace(0, 1e-300)
+
+    # Calculate -log10(padj) for the y-axis of the volcano plot
     df["-log10(padj)"] = -np.log10(df["padj"])
 
-    conditions = [
-        (df["log2FoldChange"] >  lfc_thresh) & (df["padj"] < padj_thresh),
-        (df["log2FoldChange"] < -lfc_thresh) & (df["padj"] < padj_thresh),
-    ]
-    df["DE_status"] = np.select(conditions, ["Up", "Down"], default="No change")
+    # Classify each gene with an explicit for loop (instead of np.select)
+    de_statuses = []
+
+    for _, row in df.iterrows():
+        log2fc = row["log2FoldChange"]
+        padj = row["padj"]
+
+        # Not significant if padj is too high
+        if padj >= PADJ_THRESHOLD:
+            de_statuses.append("No change")
+            continue
+
+        # padj is significant, check fold change direction
+        if log2fc > LFC_THRESHOLD:
+            de_statuses.append("Up")
+        elif log2fc < -LFC_THRESHOLD:
+            de_statuses.append("Down")
+        else:
+            # padj is significant but the fold change is too small
+            de_statuses.append("No change")
+
+    df["DE_status"] = de_statuses
+
     return df
 
 
-def run_statistics(
-    df: pd.DataFrame,
-    transloc_label: str,
-    cond: str,
-) -> None:
-    """
-    Run two statistical tests comparing genes in the translocation region
-    against the genome-wide background, and print the results.
+# =============================================================================
+# Helper function: Run two Fisher's exact tests
+# =============================================================================
 
-    Tests:
-      1. DE enrichment (Fisher): are translocation genes more often DE?
-      2. Up/Down bias (Fisher): among DE genes, are translocation genes
-         more often upregulated?
-
-    Parameters
-    ----------
-    df             : Full DESeq2 DataFrame with 'is_translocated' and
-                     'DE_status' columns already assigned.
-    transloc_label : Name of the translocation (for print output).
-    cond           : Condition label ('T1' or 'C1').
+def run_statistics(df, transloc_label, cond):
     """
-    trans_df  = df[df["is_translocated"]]
+    Run two Fisher's exact tests comparing translocation genes vs the
+    rest of the genome:
+    1. DE vs No change (are translocation genes more often DE?)
+    2. Up vs Down (among DE genes, are translocation genes biased toward Up?)
+    Print the results.
+    """
+    # Split into translocation and genome-wide groups.
+    # ~ inverts a boolean (so ~True = False).
+    trans_df = df[df["is_translocated"]]
     genome_df = df[~df["is_translocated"]]
 
-    n_trans  = len(trans_df)
+    n_trans = len(trans_df)
     n_genome = len(genome_df)
 
+    # If there are no translocation genes, there's nothing to test
     if n_trans == 0:
-        print(f"  No translocation genes found for {transloc_label} in {cond}")
+        print("  No translocation genes found for "
+              + transloc_label + " in " + cond)
         return
 
-    # ── Print DE fractions ────────────────────────────────────────────────────
-    print(f"\n  {transloc_label} | WT vs {cond}")
-    print(f"  Translocation genes: {n_trans}")
-    for status in ["Up", "Down", "No change"]:
-        n = (trans_df["DE_status"] == status).sum()
-        print(f"    {status}: {n} ({n/n_trans:.1%})")
+    # -------------------------------------------------------------------------
+    # Print DE fractions in the translocation group
+    # -------------------------------------------------------------------------
+    print("")
+    print("  " + transloc_label + " | WT vs " + cond)
+    print("  Translocation genes: " + str(n_trans))
 
-    # ── Fisher test 1: DE enrichment ─────────────────────────────────────────
-    trans_de  = (trans_df["DE_status"]  != "No change").sum()
-    trans_no  = (trans_df["DE_status"]  == "No change").sum()
+    for status in ["Up", "Down", "No change"]:
+        # Count rows with this DE status
+        n = (trans_df["DE_status"] == status).sum()
+
+        # {:.1%} formats a number as a percentage with 1 decimal
+        # (e.g. 0.156 becomes "15.6%")
+        fraction = n / n_trans
+        print("    " + status + ": " + str(n)
+              + " ({:.1%})".format(fraction))
+
+    # -------------------------------------------------------------------------
+    # Test 1: DE enrichment (DE vs No change)
+    # -------------------------------------------------------------------------
+    # Build the 2x2 table:
+    #                       DE      Not DE
+    # Translocation         a         b
+    # Genome-wide           c         d
+
+    # Count Trues with .sum() (True counts as 1, False as 0)
+    trans_de = (trans_df["DE_status"] != "No change").sum()
+    trans_no = (trans_df["DE_status"] == "No change").sum()
     genome_de = (genome_df["DE_status"] != "No change").sum()
     genome_no = (genome_df["DE_status"] == "No change").sum()
 
-    or_de, p_de = fisher_exact(
-        [[trans_de, trans_no], [genome_de, genome_no]]
-    )
-    print(f"\n  DE enrichment Fisher test:")
-    print(f"    Translocation: DE={trans_de}, No change={trans_no}")
-    print(f"    Genome-wide:   DE={genome_de}, No change={genome_no}")
-    print(f"    OR={or_de:.3f},  p={p_de:.4g}")
+    # Build the table as a list of lists
+    de_table = [
+        [trans_de, trans_no],
+        [genome_de, genome_no]
+    ]
 
-    # ── Fisher test 2: Up/Down bias ───────────────────────────────────────────
-    # Restrict to DE genes only for this test
-    trans_up    = (trans_df["DE_status"]  == "Up").sum()
-    trans_down  = (trans_df["DE_status"]  == "Down").sum()
-    genome_up   = (genome_df["DE_status"] == "Up").sum()
+    # Run Fisher's exact test
+    or_de, p_de = fisher_exact(de_table)
+
+    # Print results
+    print("")
+    print("  DE enrichment Fisher test:")
+    print("    Translocation: DE=" + str(trans_de)
+          + ", No change=" + str(trans_no))
+    print("    Genome-wide:   DE=" + str(genome_de)
+          + ", No change=" + str(genome_no))
+    # {:.3f} = 3 decimal places, {:.4g} = up to 4 significant digits
+    print("    OR={:.3f},  p={:.4g}".format(or_de, p_de))
+
+    # -------------------------------------------------------------------------
+    # Test 2: Up/Down bias (among DE genes only)
+    # -------------------------------------------------------------------------
+    # Build the 2x2 table:
+    #                       Up      Down
+    # Translocation         a         b
+    # Genome-wide           c         d
+
+    trans_up = (trans_df["DE_status"] == "Up").sum()
+    trans_down = (trans_df["DE_status"] == "Down").sum()
+    genome_up = (genome_df["DE_status"] == "Up").sum()
     genome_down = (genome_df["DE_status"] == "Down").sum()
 
-    or_ud, p_ud = fisher_exact(
-        [[trans_up, trans_down], [genome_up, genome_down]]
-    )
-    print(f"\n  Up/Down bias Fisher test (among DE genes only):")
-    print(f"    Translocation: Up={trans_up}, Down={trans_down}")
-    print(f"    Genome-wide:   Up={genome_up}, Down={genome_down}")
-    print(f"    OR={or_ud:.3f},  p={p_ud:.4g}")
+    ud_table = [
+        [trans_up, trans_down],
+        [genome_up, genome_down]
+    ]
+
+    or_ud, p_ud = fisher_exact(ud_table)
+
+    print("")
+    print("  Up/Down bias Fisher test (among DE genes only):")
+    print("    Translocation: Up=" + str(trans_up)
+          + ", Down=" + str(trans_down))
+    print("    Genome-wide:   Up=" + str(genome_up)
+          + ", Down=" + str(genome_down))
+    print("    OR={:.3f},  p={:.4g}".format(or_ud, p_ud))
 
 
-def plot_volcano(
-    df: pd.DataFrame,
-    transloc_genes: set,
-    transloc_label: str,
-    cond: str,
-    lfc_thresh: float,
-    padj_thresh: float,
-    colors: dict,
-    top_n_labels: int,
-    top_n_table: int,
-    output_dir: str,
-) -> None:
+# =============================================================================
+# Helper function: Make the volcano plot for one translocation x condition
+# =============================================================================
+
+def plot_volcano(df, transloc_genes, transloc_label, cond):
     """
-    Draw a volcano plot for one condition and one translocation, run
-    statistical tests, and export ranked gene tables.
-
-    Parameters
-    ----------
-    df             : DESeq2 results with DE_status and -log10(padj) columns.
-    transloc_genes : Set of gene names in the translocation region.
-    transloc_label : Human-readable translocation name.
-    cond           : Condition label ('T1' or 'C1').
-    lfc_thresh     : log2FC threshold used for DE calling.
-    padj_thresh    : Adjusted p-value threshold used for DE calling.
-    colors         : Dict mapping DE status to plot colour.
-    top_n_labels   : Number of top genes to label on the plot.
-    top_n_table    : Number of top genes to export to TSV.
-    output_dir     : Where to save outputs.
+    Make a volcano plot for one translocation in one condition.
+    Also runs the statistical tests and exports TSV tables.
     """
+    # -------------------------------------------------------------------------
+    # Step 1: Mark which genes are in this translocation
+    # -------------------------------------------------------------------------
     df = df.copy()
+
+    # .isin returns True/False per row
     df["is_translocated"] = df["gene_name"].isin(transloc_genes)
 
+    # Split into translocation and background groups
     trans_df = df[df["is_translocated"]]
-    bg_df    = df[~df["is_translocated"]]
+    bg_df = df[~df["is_translocated"]]
 
-    # ── Draw volcano plot ─────────────────────────────────────────────────────
+    # -------------------------------------------------------------------------
+    # Step 2: Create the figure
+    # -------------------------------------------------------------------------
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    # All background genes in light grey
+    # -------------------------------------------------------------------------
+    # Step 3: Draw the background (non-translocation) genes as light grey dots
+    # -------------------------------------------------------------------------
     ax.scatter(
-        bg_df["log2FoldChange"], bg_df["-log10(padj)"],
-        c="lightgray", alpha=0.4, s=8,
-        label="All other genes",
+        bg_df["log2FoldChange"],
+        bg_df["-log10(padj)"],
+        c="lightgray",
+        alpha=0.4,
+        s=8,
+        label="All other genes"
     )
 
-    # Translocation genes coloured by DE status
-    for status, color in colors.items():
+    # -------------------------------------------------------------------------
+    # Step 4: Overlay translocation genes coloured by DE status
+    # -------------------------------------------------------------------------
+    # We loop through the colour dict so each status gets its own legend entry
+    for status, color in de_colors.items():
+
+        # Get just the rows with this DE status
         subset = trans_df[trans_df["DE_status"] == status]
+
+        # Only plot if there are any genes in this category
+        # (otherwise we'd add an empty legend entry)
         if len(subset) > 0:
             ax.scatter(
-                subset["log2FoldChange"], subset["-log10(padj)"],
-                c=color, alpha=0.9, s=30,
-                edgecolor="black", linewidth=0.3,
-                label=f"Translocated — {status}",
+                subset["log2FoldChange"],
+                subset["-log10(padj)"],
+                c=color,
+                alpha=0.9,
+                s=30,
+                edgecolor="black",
+                linewidth=0.3,
+                label="Translocated — " + status
             )
 
-    # Dashed threshold lines
-    ax.axvline(x= lfc_thresh,            color="black", linestyle="--", lw=1)
-    ax.axvline(x=-lfc_thresh,            color="black", linestyle="--", lw=1)
-    ax.axhline(y=-np.log10(padj_thresh), color="black", linestyle="--", lw=1)
+    # -------------------------------------------------------------------------
+    # Step 5: Add dashed threshold lines
+    # -------------------------------------------------------------------------
+    ax.axvline(x=LFC_THRESHOLD, color="black", linestyle="--", lw=1)
+    ax.axvline(x=-LFC_THRESHOLD, color="black", linestyle="--", lw=1)
+    ax.axhline(y=-np.log10(PADJ_THRESHOLD), color="black", linestyle="--", lw=1)
 
+    # -------------------------------------------------------------------------
+    # Step 6: Labels and title
+    # -------------------------------------------------------------------------
+    # The $...$ syntax uses LaTeX math formatting for nice subscripts
     ax.set_xlabel("log$_2$ Fold Change")
     ax.set_ylabel("-log$_{10}$(adjusted p-value)")
-    ax.set_title(f"WT vs {cond} — {transloc_label} genes highlighted")
+    ax.set_title("WT vs " + cond + " — " + transloc_label
+                 + " genes highlighted")
     ax.legend(frameon=False, fontsize=8)
 
-    # ── Annotate top significant translocation genes ──────────────────────────
-    trans_sig  = trans_df[trans_df["DE_status"].isin(["Up", "Down"])]
-    top_up     = trans_sig[trans_sig["DE_status"] == "Up"].nlargest(top_n_labels, "-log10(padj)")
-    top_down   = trans_sig[trans_sig["DE_status"] == "Down"].nlargest(top_n_labels, "-log10(padj)")
-    top_genes  = pd.concat([top_up, top_down])
+    # -------------------------------------------------------------------------
+    # Step 7: Find the top significant translocation genes to label
+    # -------------------------------------------------------------------------
+    # Get only the genes that are differentially expressed
+    is_up = (trans_df["DE_status"] == "Up")
+    is_down = (trans_df["DE_status"] == "Down")
+    trans_sig = trans_df[is_up | is_down]   # | is OR
 
+    # nlargest(N, "col") returns N rows with the largest values in col
+    top_up = trans_sig[trans_sig["DE_status"] == "Up"]
+    top_up = top_up.nlargest(TOP_N_LABELS, "-log10(padj)")
+
+    top_down = trans_sig[trans_sig["DE_status"] == "Down"]
+    top_down = top_down.nlargest(TOP_N_LABELS, "-log10(padj)")
+
+    # Stick them together for labelling
+    top_genes = pd.concat([top_up, top_down])
+
+    # -------------------------------------------------------------------------
+    # Step 8: Add the gene name labels on the plot
+    # -------------------------------------------------------------------------
+    # We loop through each top gene and add a text label.
+    # i is the row index (0, 1, 2, ...), we use it to stagger labels vertically.
     for i, (_, row) in enumerate(top_genes.iterrows()):
-        x_offset = 0.05 * np.sign(row["log2FoldChange"])
+
+        x_pos = row["log2FoldChange"]
+        y_pos = row["-log10(padj)"]
+        gene_name = row["gene_name"]
+
+        # np.sign returns +1 if positive, -1 if negative.
+        # x_offset is +0.05 for upregulated (label to the right)
+        # and -0.05 for downregulated (label to the left).
+        x_offset = 0.05 * np.sign(x_pos)
+
+        # y_offset increases with i so labels stagger upward, not on top of each other
         y_offset = 0.1 + 0.05 * i
+
+        # Choose horizontal alignment based on direction
+        if x_pos > 0:
+            horizontal_alignment = "left"
+        else:
+            horizontal_alignment = "right"
+
+        # Add the label
         ax.text(
-            row["log2FoldChange"] + x_offset,
-            row["-log10(padj)"]   + y_offset,
-            row["gene_name"],
-            fontsize=6, rotation=30,
-            ha="left" if row["log2FoldChange"] > 0 else "right",
-            va="bottom",
+            x_pos + x_offset,
+            y_pos + y_offset,
+            gene_name,
+            fontsize=6,
+            rotation=30,
+            ha=horizontal_alignment,
+            va="bottom"
         )
 
+    # -------------------------------------------------------------------------
+    # Step 9: Save the plot
+    # -------------------------------------------------------------------------
     fig.tight_layout()
 
-    # Make a filename-safe version of the translocation label
-    safe_label = transloc_label.replace("(", "").replace(")", "").replace(";", "_")
-    plot_path  = os.path.join(output_dir,
-                              f"volcano_WT_vs_{cond}_{safe_label}.png")
+    # Make a filename-safe version of the translocation label.
+    # We can't have parentheses or semicolons in filenames on some systems.
+    safe_label = transloc_label.replace("(", "")
+    safe_label = safe_label.replace(")", "")
+    safe_label = safe_label.replace(";", "_")
+
+    plot_filename = "volcano_WT_vs_" + cond + "_" + safe_label + ".png"
+    plot_path = os.path.join(OUTPUT_FOLDER, plot_filename)
     fig.savefig(plot_path, dpi=300)
     plt.close(fig)
-    print(f"  Saved plot: {plot_path}")
 
-    # ── Print top genes ───────────────────────────────────────────────────────
-    print(f"\n  Top {top_n_labels} upregulated genes ({transloc_label}, {cond}):")
+    print("  Saved plot: " + plot_path)
+
+    # -------------------------------------------------------------------------
+    # Step 10: Print top genes to the terminal
+    # -------------------------------------------------------------------------
+    print("")
+    print("  Top " + str(TOP_N_LABELS) + " upregulated genes ("
+          + transloc_label + ", " + cond + "):")
     for gene in top_up["gene_name"].values:
-        print(f"    {gene}")
-    print(f"\n  Top {top_n_labels} downregulated genes ({transloc_label}, {cond}):")
+        print("    " + gene)
+
+    print("")
+    print("  Top " + str(TOP_N_LABELS) + " downregulated genes ("
+          + transloc_label + ", " + cond + "):")
     for gene in top_down["gene_name"].values:
-        print(f"    {gene}")
+        print("    " + gene)
 
-    # ── Export ranked gene tables ─────────────────────────────────────────────
-    up_path   = os.path.join(output_dir, f"top_up_{safe_label}_WT_vs_{cond}.tsv")
-    down_path = os.path.join(output_dir, f"top_down_{safe_label}_WT_vs_{cond}.tsv")
+    # -------------------------------------------------------------------------
+    # Step 11: Export ranked TSV tables
+    # -------------------------------------------------------------------------
+    # Note: here we rank by FOLD CHANGE (not p-value).
+    # nlargest gives us the most upregulated genes.
+    # nsmallest gives us the most downregulated (smallest = most negative).
 
-    (trans_sig[trans_sig["DE_status"] == "Up"]
-     .nlargest(top_n_table, "log2FoldChange")
-     .to_csv(up_path, sep="\t", index=False))
+    only_up = trans_sig[trans_sig["DE_status"] == "Up"]
+    top_up_table = only_up.nlargest(TOP_N_TABLE, "log2FoldChange")
 
-    (trans_sig[trans_sig["DE_status"] == "Down"]
-     .nsmallest(top_n_table, "log2FoldChange")
-     .to_csv(down_path, sep="\t", index=False))
+    only_down = trans_sig[trans_sig["DE_status"] == "Down"]
+    top_down_table = only_down.nsmallest(TOP_N_TABLE, "log2FoldChange")
 
-    print(f"\n  Exported top {top_n_table} upregulated genes:   {up_path}")
-    print(f"  Exported top {top_n_table} downregulated genes: {down_path}")
+    # Build the file paths
+    up_filename = "top_up_" + safe_label + "_WT_vs_" + cond + ".tsv"
+    down_filename = "top_down_" + safe_label + "_WT_vs_" + cond + ".tsv"
 
-    # ── Run statistical tests ─────────────────────────────────────────────────
+    up_path = os.path.join(OUTPUT_FOLDER, up_filename)
+    down_path = os.path.join(OUTPUT_FOLDER, down_filename)
+
+    # Save the tables
+    top_up_table.to_csv(up_path, sep="\t", index=False)
+    top_down_table.to_csv(down_path, sep="\t", index=False)
+
+    print("")
+    print("  Exported top " + str(TOP_N_TABLE)
+          + " upregulated genes:   " + up_path)
+    print("  Exported top " + str(TOP_N_TABLE)
+          + " downregulated genes: " + down_path)
+
+    # -------------------------------------------------------------------------
+    # Step 12: Run the statistical tests
+    # -------------------------------------------------------------------------
     run_statistics(df, transloc_label, cond)
 
 
 # =============================================================================
-# Main
+# Main code starts here
 # =============================================================================
 
-os.makedirs(CONFIG["output_dir"], exist_ok=True)
+# Make sure the output folder exists
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# ── Load GTF once — used to map genomic coordinates to gene names ─────────────
+
+# -----------------------------------------------------------------------------
+# Step 1: Load the GTF file (only needs to be done once)
+# -----------------------------------------------------------------------------
 print("Loading GTF gene annotations...")
-gtf = load_gtf_genes(CONFIG["gtf_file"])
-print(f"  {len(gtf)} protein-coding genes loaded.")
+gtf = load_gtf_genes(GTF_FILE)
+print("  " + str(len(gtf)) + " protein-coding genes loaded.")
 
-# ── Load and classify DESeq2 results ─────────────────────────────────────────
+
+# -----------------------------------------------------------------------------
+# Step 2: Load and classify the DESeq2 results for each condition
+# -----------------------------------------------------------------------------
 print("Loading DESeq2 results...")
+
+# Empty dictionary, we'll fill it with one DataFrame per condition
 de_results = {}
+
 for cond in CONDITIONS:
-    de_results[cond] = classify_de(
-        pd.read_csv(CONFIG["de_files"][cond], sep="\t"),
-        CONFIG["lfc_threshold"],
-        CONFIG["padj_threshold"],
-    )
-    print(f"  {cond}: {len(de_results[cond])} genes loaded.")
 
-# ── Run analysis for each translocation × condition combination ───────────────
-for transloc_label, regions in CONFIG["translocations"].items():
-    print(f"\n{'='*55}")
-    print(f"Translocation: {transloc_label}")
-    print(f"{'='*55}")
+    # Read the file
+    de_path = de_files[cond]
+    de_df = pd.read_csv(de_path, sep="\t")
 
-    # Find all genes overlapping this translocation's genomic regions
+    # Add the DE_status and -log10(padj) columns
+    de_df = classify_de(de_df)
+
+    # Store in our dict
+    de_results[cond] = de_df
+
+    print("  " + cond + ": " + str(len(de_df)) + " genes loaded.")
+
+
+# -----------------------------------------------------------------------------
+# Step 3: Process each translocation x condition combination
+# -----------------------------------------------------------------------------
+# Loop through each translocation
+for transloc_label, regions in translocations.items():
+
+    print("")
+    print("=" * 55)
+    print("Translocation: " + transloc_label)
+    print("=" * 55)
+
+    # Find all genes whose coordinates overlap this translocation's regions
     transloc_genes = get_transloc_genes(gtf, regions)
-    print(f"  Genes in translocation region: {len(transloc_genes)}")
+    print("  Genes in translocation region: " + str(len(transloc_genes)))
 
+    # For each condition, make a plot
     for cond in CONDITIONS:
         plot_volcano(
-            df             = de_results[cond],
-            transloc_genes = transloc_genes,
-            transloc_label = transloc_label,
-            cond           = cond,
-            lfc_thresh     = CONFIG["lfc_threshold"],
-            padj_thresh    = CONFIG["padj_threshold"],
-            colors         = CONFIG["colors"],
-            top_n_labels   = CONFIG["top_n_labels"],
-            top_n_table    = CONFIG["top_n_table"],
-            output_dir     = CONFIG["output_dir"],
+            df=de_results[cond],
+            transloc_genes=transloc_genes,
+            transloc_label=transloc_label,
+            cond=cond
         )
 
-print("\nDone.")
+
+# Done!
+print("")
+print("Done!")
