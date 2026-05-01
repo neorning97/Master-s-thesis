@@ -42,6 +42,17 @@ import os
 import pandas as pd                
 import matplotlib.pyplot as plt    
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 18,         # default text size
+    "axes.titlesize": 20,    # plot title
+    "axes.labelsize": 18,    # x and y axis labels
+    "xtick.labelsize": 16,   # x tick labels
+    "ytick.labelsize": 16,   # y tick labels
+    "legend.fontsize": 16,   # legend text
+    "legend.title_fontsize": 17,  # legend title
+    "figure.titlesize": 22   # controls fig.suptitle
+})
 
 # =============================================================================
 # CONFIG SECTION - Edit these paths and settings before running
@@ -117,7 +128,7 @@ transloc_conditions = {
 # -----------------------------------------------------------------------------
 # Output folder for plots
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/path/to/results/plots/subcompartment_tracks"
+OUTPUT_FOLDER = "/path/to/plots/subcompartment_tracks"
 
 # -----------------------------------------------------------------------------
 # Colour scheme: shades of red for A, shades of blue for B
@@ -312,8 +323,8 @@ def plot_track(ax, segments, condition_col, title, x_label_suffix=""):
     ax.set_yticks([])
 
     # Add the title and x-axis label
-    ax.set_title(title, fontsize=9)
-    ax.set_xlabel("Position (bp)" + x_label_suffix)
+    ax.set_title(title)
+    ax.set_xlabel("Position (bp)")
 
     # -------------------------------------------------------------------------
     # If we drew TWO segments, mark the breakpoint with a green vertical line
@@ -331,13 +342,8 @@ def plot_track(ax, segments, condition_col, title, x_label_suffix=""):
             x=seg1_length,
             color="green",
             linestyle="-",
-            linewidth=5,
-            label="Breakpoint"
+            linewidth=5
         )
-
-        # Show a small legend for the breakpoint
-        ax.legend(fontsize=8)
-
 
 # =============================================================================
 # Helper function: Draw the legend track
@@ -358,7 +364,7 @@ def add_legend(ax):
     # Add the legend, positioned to the right of the plot
     # bbox_to_anchor=(1.05, 1) means: place at x=1.05, y=1 in axes units
     # (so just to the right of the axis, at the top)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
 
     # Hide the axes frame and ticks
     ax.axis("off")
@@ -479,17 +485,16 @@ for trans_name, pair in all_pairs.items():
         print("Plotting " + trans_name + " — " + cond_name)
 
         # ---------------------------------------------------------------------
-        # Create the figure with 4 stacked subplots (axes)
+        # Create the figure with 3 stacked subplots (axes)
         # ---------------------------------------------------------------------
-        # plt.subplots(4, 1, ...) creates a figure with 4 rows and 1 column.
-        # axes is a list of 4 Axes objects we can draw on.
+        # plt.subplots(3, 1, ...) creates a figure with 3 rows and 1 column.
+        # axes is a list of 3 Axes objects we can draw on.
         # figsize is the size in inches.
-        fig, axes = plt.subplots(4, 1, figsize=(14, 9))
+        fig, axes = plt.subplots(3, 1, figsize=(16, 8))
 
         # Add the overall figure title
         fig.suptitle(
             "Subcompartment tracks " + trans_name + " — " + cond_name,
-            fontsize=13,
             fontweight="bold"
         )
 
@@ -554,14 +559,20 @@ for trans_name, pair in all_pairs.items():
         )
 
         # ---------------------------------------------------------------------
-        # Track 4 (axes[3]): the legend
-        # ---------------------------------------------------------------------
-        add_legend(axes[3])
-
-        # ---------------------------------------------------------------------
         # Adjust spacing and save the figure
         # ---------------------------------------------------------------------
         plt.tight_layout()
+
+        # Add a figure-level legend on the right side
+        legend_handles = []
+        for state, color in subcomp_colors.items():
+            legend_handles.append(plt.Line2D([0], [0], color=color, linewidth=8, label=state))
+        fig.legend(
+            handles=legend_handles,
+            loc="center right",
+            bbox_to_anchor=(1.0, 0.5)
+        )
+        plt.subplots_adjust(right=0.88)  # make room for the legend
 
         # Build a safe filename, we replace characters that don't play nice
         # in filenames (semicolons, parentheses)
@@ -575,7 +586,7 @@ for trans_name, pair in all_pairs.items():
 
         # Save and close
         # bbox_inches="tight" trims any extra whitespace around the figure
-        fig.savefig(out_path, dpi=150, bbox_inches="tight")
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
         plt.close(fig)
 
         print("  Saved: " + out_path)
