@@ -49,6 +49,16 @@ import pandas as pd
 import matplotlib.pyplot as plt                     
 from scipy.stats import kruskal, chi2_contingency   
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 22,         # default text size
+    "axes.titlesize": 30,    # plot title
+    "axes.labelsize": 30,    # x and y axis labels
+    "xtick.labelsize": 24,   # x tick labels
+    "ytick.labelsize": 20,   # y tick labels
+    "legend.fontsize": 20,   # legend text
+    "legend.title_fontsize": 21  # legend title
+})
 
 # =============================================================================
 # CONFIG SECTION - Edit these paths and settings before running
@@ -112,7 +122,7 @@ PADJ_THRESHOLD = 0.05
 # -----------------------------------------------------------------------------
 # Output folder
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/path/to/results/plots/gene_bin_expression"
+OUTPUT_FOLDER = "/path/to/plots/gene_bin_expression"
 
 # Conditions we'll process (we don't process WT, it's the reference)
 CONDITIONS = ["T1", "C1"]
@@ -379,7 +389,7 @@ def run_analysis(df_bins, df_genome, cond, category_col,
     # Step 6: Make and save the stacked bar plot
     # -------------------------------------------------------------------------
     # Create the figure
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(12, 8))
 
     # Define colours for each DE status
     color_dict = {
@@ -398,6 +408,7 @@ def run_analysis(df_bins, df_genome, cond, category_col,
 
     # Add labels and title
     ax.set_ylabel("Fraction of genes")
+    ax.set_xlabel("")
     ax.set_title(cond + ": " + label)
 
     plt.tight_layout()
