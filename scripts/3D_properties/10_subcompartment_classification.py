@@ -50,6 +50,16 @@ import pandas as pd
 import matplotlib.pyplot as plt      
 from scipy.stats import binomtest    
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 22,         # default text size
+    "axes.titlesize": 30,    # plot title
+    "axes.labelsize": 30,    # x and y axis labels
+    "xtick.labelsize": 22,   # x tick labels
+    "ytick.labelsize": 20,   # y tick labels
+    "legend.fontsize": 20,   # legend text
+    "legend.title_fontsize": 21  # legend title
+})
 
 # =============================================================================
 # CONFIG SECTION - Edit these paths before running
@@ -116,7 +126,7 @@ name_maps = {
 # -----------------------------------------------------------------------------
 # Output folder for plots and tables
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/path/to/results/plots/subcompartment_classification"
+OUTPUT_FOLDER = "/path/to/plots/subcompartment_classification"
 
 # -----------------------------------------------------------------------------
 # A small number used to avoid divide-by-zero when calculating odds ratios
@@ -279,7 +289,7 @@ def make_stacked_bar_plot(df, y_columns, filename, title,
     - use_colormap: If True, use matplotlib's "tab10" color scheme instead
     """
     # Make a new figure (8x5 inches)
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(12, 8))
 
     # We're using pandas' built-in plotting (df.plot()).
     # It draws a bar plot on the axes we give it.
@@ -308,6 +318,7 @@ def make_stacked_bar_plot(df, y_columns, filename, title,
 
     # Add labels and title
     ax.set_ylabel("Fraction of bins")
+    ax.set_xlabel("")
     ax.set_title(title)
 
     # Adjust spacing and save
@@ -747,6 +758,6 @@ stats_out = os.path.join(OUTPUT_FOLDER, "all_binomial_stats.csv")
 stats_df.to_csv(stats_out, index=False)
 
 print("")
-print("Done!")
 print("  Bin annotations: " + bins_out)
 print("  Statistics:      " + stats_out)
+print("Done!")
