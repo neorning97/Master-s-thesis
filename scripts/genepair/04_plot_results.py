@@ -41,6 +41,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns                  
 from scipy.stats import wilcoxon       
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 18,         # default text size
+    "axes.titlesize": 20,    # plot title
+    "axes.labelsize": 18,    # x and y axis labels
+    "xtick.labelsize": 16,   # x tick labels
+    "ytick.labelsize": 16,   # y tick labels
+    "legend.fontsize": 16,   # legend text
+    "legend.title_fontsize": 17  # legend title
+})
 
 # =============================================================================
 # CONFIG SECTION - Edit these paths before running
@@ -50,7 +60,7 @@ from scipy.stats import wilcoxon
 RESULTS_DIR = "/path/to/results"
 
 # Folder where we'll save the plots
-PLOTS_DIR = "/path/to/results/plots/genepair"
+PLOTS_DIR = "/path/to/plots/"
 
 
 # =============================================================================
@@ -336,7 +346,7 @@ for plot_name, wt_sub, cond_df, cond_col in comparisons:
     # Save the plot
     plot_filename = plot_name + "_scatter.png"
     plot_path = os.path.join(PLOTS_DIR, plot_filename)
-    fig.savefig(plot_path)
+    fig.savefig(plot_path, dpi=300, bbox_inches="tight")
 
     # Close the figure to free memory
     plt.close(fig)
