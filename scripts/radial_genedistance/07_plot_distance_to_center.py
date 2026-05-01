@@ -40,6 +40,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns              
 from scipy.stats import wilcoxon   
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 18,         # default text size
+    "axes.titlesize": 20,    # plot title
+    "axes.labelsize": 18,    # x and y axis labels
+    "xtick.labelsize": 16,   # x tick labels
+    "ytick.labelsize": 16,   # y tick labels
+    "legend.fontsize": 16,   # legend text
+    "legend.title_fontsize": 17  # legend title
+})
 
 # =============================================================================
 # CONFIG SECTION - Edit these file paths before running the script
@@ -47,12 +57,12 @@ from scipy.stats import wilcoxon
 # I'm putting all the paths as variables at the top so they're easy to change.
 
 # The aggregated distance files made by scripts 05 and 06
-T1_FILE = "/path/to/T1_distance_to_center_agg.tsv"
-C1_FILE = "/path/to/C1_distance_to_center_agg.tsv"
-WT_FILE = "/path/to/WT_distance_to_center_agg.tsv"
+T1_FILE = "/path/to/results/T1_distance_to_center_agg.tsv"
+C1_FILE = "/path/to/results/C1_distance_to_center_agg.tsv"
+WT_FILE = "/path/to/results/WT_distance_to_center_agg.tsv"
 
 # Where to save the plots (the folder will be created if it doesn't exist)
-PLOTS_FOLDER = "/path/to/plots/distance_to_center"
+PLOTS_FOLDER = "/path/to/plots"
 
 
 # =============================================================================
@@ -231,7 +241,7 @@ def plot_and_test_one_condition(wt_df, cond_df, cond_col, condition_label,
         plot_path = os.path.join(output_folder, plot_filename)
 
         # Save the figure
-        fig.savefig(plot_path)
+        fig.savefig(plot_path, dpi=300, bbox_inches="tight")
 
         # Close the figure to free up memory
         # (otherwise matplotlib keeps every figure open in memory)
