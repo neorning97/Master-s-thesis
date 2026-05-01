@@ -15,11 +15,10 @@ What's a volcano plot?
   the bottom-middle, with a few significant genes shooting up and out
   to the sides.
 
-What this script adds:
-- We highlight the translocated genes in different colours so we can see
+What this script does:
+- Highlights the translocated genes in different colours so we can see
   if they cluster among the most differentially expressed genes.
-- We label the most significant translocated genes with their names.
-- We export ranked tables of top up- and down-regulated translocated genes
+- Exports ranked tables of top up- and down-regulated translocated genes
   for downstream analysis (like GO enrichment in script 18).
 
 For each condition (T1, C1), the script:
@@ -29,8 +28,7 @@ For each condition (T1, C1), the script:
 3. Classifies each gene as Up / Down / No change.
 4. Plots all genes as small grey dots.
 5. Overlays the translocated genes in colour (green=Up, red=Down, blue=No change).
-6. Labels the top N most significant translocated genes.
-7. Saves the plot and ranked TSV tables.
+6. Saves the plot and ranked TSV tables.
 
 Run scripts 01-04 and script 13 first.
 Then edit the file paths below and run this script.
@@ -39,11 +37,21 @@ Required libraries: pandas, numpy, matplotlib
 Install them with: pip install pandas numpy matplotlib
 """
 
-import os                          
-import numpy as np                 
-import pandas as pd                
-import matplotlib.pyplot as plt    
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 22,         # default text size
+    "axes.titlesize": 30,    # plot title
+    "axes.labelsize": 30,    # x and y axis labels
+    "xtick.labelsize": 24,   # x tick labels
+    "ytick.labelsize": 20,   # y tick labels
+    "legend.fontsize": 24,   # legend text
+    "legend.title_fontsize": 21  # legend title
+})
 
 # =============================================================================
 # CONFIG SECTION - Edit these paths and settings before running
@@ -80,12 +88,8 @@ LFC_THRESHOLD = 1.0
 PADJ_THRESHOLD = 0.05
 
 # -----------------------------------------------------------------------------
-# How many top genes to label/export
+# How many top genes to export in the ranked TSV tables
 # -----------------------------------------------------------------------------
-# How many to label on the volcano plot itself
-TOP_N_LABELS = 5
-
-# How many to export to the "top genes" TSV files
 TOP_N_TABLE = 20
 
 # -----------------------------------------------------------------------------
@@ -100,7 +104,7 @@ de_colors = {
 # -----------------------------------------------------------------------------
 # Output folder for plots and tables
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/path/to/results/plots/volcano_plots"
+OUTPUT_FOLDER = "/path/to/plots/volcano_plots"
 
 # Conditions we'll process
 CONDITIONS = ["T1", "C1"]
@@ -109,7 +113,6 @@ CONDITIONS = ["T1", "C1"]
 # =============================================================================
 # Helper function: Classify each gene as Up / Down / No change
 # =============================================================================
-# Same as in script 15, but we also calculate -log10(padj) for the y-axis.
 
 def classify_de(df):
     """
@@ -135,8 +138,6 @@ def classify_de(df):
     # -------------------------------------------------------------------------
     # Classify each gene as Up / Down / No change
     # -------------------------------------------------------------------------
-    # Build the DE_status as a list, one entry per row, then add as a column.
-    # Same approach as in script 15.
     de_statuses = []
 
     for _, row in df.iterrows():
@@ -185,62 +186,6 @@ def load_transloc_genes(dist_file):
 
 
 # =============================================================================
-# Helper function: Add gene name labels to the top genes on the plot
-# =============================================================================
-
-def annotate_top_genes(ax, top_genes_df, n_labels):
-    """
-    Add gene name text labels next to the top N most significant
-    translocated genes on the plot.
-    """
-    # head(n) gives the first n rows.
-    # We use n_labels * 2 because top_genes_df contains both up and down
-    # genes (n_labels of each).
-    rows_to_label = top_genes_df.head(n_labels * 2)
-
-    # Loop through each row, with i counting up from 0
-    for i, (_, row) in enumerate(rows_to_label.iterrows()):
-
-        # Get this gene's position
-        x_pos = row["log2FoldChange"]
-        y_pos = row["-log10(padj)"]
-        gene_name = row["gene_name"]
-
-        # ---------------------------------------------------------------------
-        # Compute offsets so the label doesn't sit ON the dot
-        # ---------------------------------------------------------------------
-        # np.sign(x) returns +1 if x is positive, -1 if negative, 0 if zero.
-        # So x_offset is +0.05 for upregulated genes (label to the right)
-        # and -0.05 for downregulated (label to the left).
-        x_offset = 0.05 * np.sign(x_pos)
-
-        # y_offset increases with i so labels stagger upward and don't all
-        # overlap on the same line
-        y_offset = 0.1 + 0.05 * i
-
-        # Decide horizontal alignment based on direction.
-        # ha="left" means the label starts to the right of the position;
-        # ha="right" means the label ends at the position (extends to left).
-        if x_pos > 0:
-            horizontal_alignment = "left"
-        else:
-            horizontal_alignment = "right"
-
-        # ---------------------------------------------------------------------
-        # Add the text label
-        # ---------------------------------------------------------------------
-        ax.text(
-            x_pos + x_offset,           # x position of label
-            y_pos + y_offset,           # y position of label
-            gene_name,                  # the actual text
-            fontsize=6,
-            rotation=30,                # rotate text 30 degrees
-            ha=horizontal_alignment,    # horizontal alignment
-            va="bottom"                 # vertical alignment
-        )
-
-
-# =============================================================================
 # Helper function: Make the volcano plot for one condition
 # =============================================================================
 
@@ -267,17 +212,15 @@ def plot_volcano(de_df, transloc_genes, cond):
     # -------------------------------------------------------------------------
     # Step 2: Create the figure
     # -------------------------------------------------------------------------
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 8))
 
     # -------------------------------------------------------------------------
-    # Step 3: Plot all the non-translocated genes as light grey dots
+    # Step 3: Plot all the non-translocated genes as gray dots
     # -------------------------------------------------------------------------
-    # ax.scatter draws scatter plot dots.
-    # c=color, alpha=transparency (0=invisible, 1=opaque), s=size in points.
     ax.scatter(
         bg_df["log2FoldChange"],
         bg_df["-log10(padj)"],
-        c="lightgray",
+        c="gray",
         alpha=0.4,
         s=8,
         label="All other genes"
@@ -286,15 +229,13 @@ def plot_volcano(de_df, transloc_genes, cond):
     # -------------------------------------------------------------------------
     # Step 4: Overlay translocated genes coloured by DE status
     # -------------------------------------------------------------------------
-    # We loop through the colour dict and plot each status group separately.
-    # That way each group gets its own legend entry.
     for status, color in de_colors.items():
 
         # Get just the rows with this DE status
         subset = trans_df[trans_df["DE_status"] == status]
 
         # Plot them. We use bigger dots (s=30) and add a black outline
-        # (edgecolor) so they stand out from the background grey dots.
+        # (edgecolor) so they stand out from the background gray dots.
         ax.scatter(
             subset["log2FoldChange"],
             subset["-log10(padj)"],
@@ -325,66 +266,37 @@ def plot_volcano(de_df, transloc_genes, cond):
     ax.set_title("WT vs " + cond + " — translocated genes highlighted")
 
     # frameon=False removes the box around the legend
-    ax.legend(frameon=False, fontsize=8)
+    ax.legend(
+        frameon=False,
+        bbox_to_anchor=(1.02, 1),
+        loc="upper left"
+    )
 
     # -------------------------------------------------------------------------
-    # Step 7: Find the top significant translocated genes to label
-    # -------------------------------------------------------------------------
-    # Get only translocated genes that are differentially expressed
-    is_up = (trans_df["DE_status"] == "Up")
-    is_down = (trans_df["DE_status"] == "Down")
-    trans_sig = trans_df[is_up | is_down]   # | is OR
-
-    # nlargest(N, "col") returns the N rows with the largest values in col.
-    # Top 5 most significant up-regulated translocated genes.
-    top_up = trans_sig[trans_sig["DE_status"] == "Up"]
-    top_up = top_up.nlargest(TOP_N_LABELS, "-log10(padj)")
-
-    # Top 5 most significant down-regulated translocated genes
-    top_down = trans_sig[trans_sig["DE_status"] == "Down"]
-    top_down = top_down.nlargest(TOP_N_LABELS, "-log10(padj)")
-
-    # Stick them together into one table for labelling
-    top_genes = pd.concat([top_up, top_down])
-
-    # -------------------------------------------------------------------------
-    # Step 8: Add the gene name labels
-    # -------------------------------------------------------------------------
-    annotate_top_genes(ax, top_genes, TOP_N_LABELS)
-
-    # -------------------------------------------------------------------------
-    # Step 9: Save the plot
+    # Step 7: Save the plot
     # -------------------------------------------------------------------------
     fig.tight_layout()
 
     plot_filename = "volcano_WT_vs_" + cond + "_highlighted.png"
     plot_path = os.path.join(OUTPUT_FOLDER, plot_filename)
-    fig.savefig(plot_path, dpi=300)
+    fig.savefig(plot_path, dpi=300, bbox_inches="tight")
 
     plt.close(fig)
 
     print("  Saved plot: " + plot_path)
 
     # -------------------------------------------------------------------------
-    # Step 10: Print the top genes to the terminal
+    # Step 8: Find the significant translocated genes (for export)
     # -------------------------------------------------------------------------
-    print("")
-    print("  Top " + str(TOP_N_LABELS) + " upregulated translocated genes in "
-          + cond + ":")
-    for gene in top_up["gene_name"].values:
-        print("    " + gene)
-
-    print("")
-    print("  Top " + str(TOP_N_LABELS) + " downregulated translocated genes in "
-          + cond + ":")
-    for gene in top_down["gene_name"].values:
-        print("    " + gene)
+    is_up = (trans_df["DE_status"] == "Up")
+    is_down = (trans_df["DE_status"] == "Down")
+    trans_sig = trans_df[is_up | is_down]   # | is OR
 
     # -------------------------------------------------------------------------
-    # Step 11: Export ranked top-N TSV tables
+    # Step 9: Export ranked top-N TSV tables
     # -------------------------------------------------------------------------
-    # Note: here we rank by FOLD CHANGE (not p-value) to get the
-    # biggest movers up and down.
+    # We rank by FOLD CHANGE (not p-value) to get the biggest movers up
+    # and down.
     # nlargest returns the rows with the biggest log2FC (most upregulated).
     # nsmallest returns the rows with the smallest log2FC (most downregulated).
 
@@ -409,7 +321,7 @@ def plot_volcano(de_df, transloc_genes, cond):
     print("  Exported top " + str(TOP_N_TABLE) + " downregulated genes: " + down_path)
 
     # -------------------------------------------------------------------------
-    # Step 12: Export ALL significant translocated genes (no cap)
+    # Step 10: Export ALL significant translocated genes (no cap)
     # -------------------------------------------------------------------------
     # These full lists are used by script 18 for GO enrichment.
     # GO enrichment needs many genes to be statistically powerful, so we
