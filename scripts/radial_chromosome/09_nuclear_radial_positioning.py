@@ -46,6 +46,17 @@ import pandas as pd
 import matplotlib.pyplot as plt    
 from scipy.stats import wilcoxon   
 
+# Increase font sizes for all plots
+plt.rcParams.update({
+    "font.size": 22,         # default text size
+    "axes.titlesize": 24,    # plot title
+    "axes.labelsize": 26,    # x and y axis labels
+    "xtick.labelsize": 20,   # x tick labels
+    "ytick.labelsize": 20,   # y tick labels
+    "legend.fontsize": 20,   # legend text
+    "legend.title_fontsize": 21  # legend title
+})
+
 # =============================================================================
 # CONFIG SECTION - Edit these paths and settings before running
 # =============================================================================
@@ -69,8 +80,8 @@ cmm_folders = {
 # -----------------------------------------------------------------------------
 # A BED file row tells us "this segment from chromX is at position start-end"
 # Required columns in these files: chrom, start, end, transloc_id, label
-T1_BED_FILE = "/path/to/verify_T1_translocations.bed"
-C1_BED_FILE = "/path/to/verify_C1_translocations.bed"
+T1_BED_FILE = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/verify_T1_translocations.bed"
+C1_BED_FILE = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/verify_C1_translocations.bed"
 
 bed_files = {
     "T1": T1_BED_FILE,
@@ -113,14 +124,14 @@ segment_colors = {
     "t(2;10)":                   "#31a354",   # green
     "chr3":                      "#e41a1c",   # red
     "chr17":                     "#2171b5",   # blue
-    "chr3 fragment in Der(17)":  "#fd8d3c",   # orange
-    "chr17 fragment in Der(3)":  "#31a354",   # green
+    "chr3 frag in Der(17)":  "#fd8d3c",   # orange
+    "chr17 frag in Der(3)":  "#31a354",   # green
 }
 
 # -----------------------------------------------------------------------------
 # Where to save all the output files (plots and stats table)
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/path/to/results/plots/nuclear_positioning"
+OUTPUT_FOLDER = "/path/to/plots/nuclear_positioning"
 
 # Order of conditions in the plots (left to right)
 CONDITIONS = ["WT", "T1", "C1"]
@@ -310,7 +321,7 @@ def build_segment_table():
                 frag_rows = rows[rows["chrom"] == "chr3"]
                 for _, seg in frag_rows.iterrows():
                     fragment_record = {
-                        "label": "chr3 fragment in Der(17)",
+                        "label": "chr3 frag in Der(17)",
                         "chrom": "chr3",
                         "seg_start": seg["start"],
                         "seg_end": seg["end"],
@@ -322,7 +333,7 @@ def build_segment_table():
                 frag_rows = rows[rows["chrom"] == "chr17"]
                 for _, seg in frag_rows.iterrows():
                     fragment_record = {
-                        "label": "chr17 fragment in Der(3)",
+                        "label": "chr17 frag in Der(3)",
                         "chrom": "chr17",
                         "seg_start": seg["start"],
                         "seg_end": seg["end"],
@@ -739,14 +750,12 @@ def plot_trajectory(ax, df_traj_sub, labels, colors):
     # Set the x-axis tick positions and labels
     ax.set_xticks([0, 1, 2])
     ax.set_xticklabels(
-        ["WT", "T1\n(premalignant)", "C1\n(malignant)"],
-        fontsize=11
+        ["WT", "T1\n(premalignant)", "C1\n(malignant)"]
     )
 
     # Y-axis label
     ax.set_ylabel(
-        "Mean radial distance from nuclear centre (µm)",
-        fontsize=10
+        "Radial distance from nuclear centre (µm)"
     )
 
     # Add a legend to the right of the plot
@@ -771,11 +780,11 @@ transloc_labels = ["Der(3)t(3;17)", "Der(17)t(3;17)", "t(6;19)", "t(2;10)"]
 df_traj_transloc = df_traj[df_traj["label"].isin(transloc_labels)]
 
 # Create the figure and plot
-fig, ax = plt.subplots(figsize=(7, 5))
+fig, ax = plt.subplots(figsize=(13, 8))
 plot_trajectory(ax, df_traj_transloc, transloc_labels, segment_colors)
 
 ax.set_title(
-    "Nuclear radial positioning of translocated segments\nWT → T1 → C1",
+    "Nuclear radial positioning\nWT → T1 → C1",
     fontweight="bold"
 )
 
@@ -799,17 +808,17 @@ print("Generating combined chr3/chr17 trajectory plot...")
 all_chrom_labels = [
     "chr3",
     "chr17",
-    "chr3 fragment in Der(17)",
-    "chr17 fragment in Der(3)",
+    "chr3 frag in Der(17)",
+    "chr17 frag in Der(3)",
 ]
 
 df_traj_chrom = df_traj[df_traj["label"].isin(all_chrom_labels)]
 
-fig, ax = plt.subplots(figsize=(8, 5))
+fig, ax = plt.subplots(figsize=(13, 8))
 plot_trajectory(ax, df_traj_chrom, all_chrom_labels, segment_colors)
 
 ax.set_title(
-    "Nuclear radial positioning of chr3 and chr17\nWT → T1 → C1",
+    "Nuclear radial positioning\nWT → T1 → C1",
     fontweight="bold"
 )
 
