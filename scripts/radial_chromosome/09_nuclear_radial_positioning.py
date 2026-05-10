@@ -784,7 +784,7 @@ fig, ax = plt.subplots(figsize=(13, 8))
 plot_trajectory(ax, df_traj_transloc, transloc_labels, segment_colors)
 
 ax.set_title(
-    "Nuclear radial positioning\nWT → T1 → C1",
+    "Nuclear radial positioning\nWT --> T1 --> C1",
     fontweight="bold"
 )
 
@@ -818,7 +818,7 @@ fig, ax = plt.subplots(figsize=(13, 8))
 plot_trajectory(ax, df_traj_chrom, all_chrom_labels, segment_colors)
 
 ax.set_title(
-    "Nuclear radial positioning\nWT → T1 → C1",
+    "Nuclear radial positioning\nWT --> T1 --> C1",
     fontweight="bold"
 )
 
