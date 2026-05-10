@@ -118,7 +118,7 @@ running the scripts.
 | Subcompartment annotations | 100 kb resolution bedGraph for compartment analysis (`GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph.gz`) | [GSE246947](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246947) |
 | RNA-seq counts | Raw gene count matrix (`GSE246689_gene_counts.tsv`) | [GSE246689](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246689) |
 | RNA-seq TPM | TPM expression table (`GSE246689_gene_tpm.tsv`) | [GSE246689](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE246689) |
-| Gene annotation | Protein-coding gene GTF derived from GENCODE GRCh38.p13. Download the full GTF from [GENCODE]((https://www.gencodegenes.org/human/release_43.html)) and filter to protein-coding genes (see below) | [GENCODE](https://www.gencodegenes.org/human/release_43.html) |
+| Gene annotation | Protein-coding gene GTF derived from GENCODE GRCh38.p13. Download the full GTF from [GENCODE](https://www.gencodegenes.org/human/release_43.html) and filter to protein-coding genes (see below) | [GENCODE](https://www.gencodegenes.org/human/release_43.html) |
 | 3D structural models | Chrom3D .cmm model files for WT, T1, C1 (10 models each) | [WT](https://doi.org/10.5281/zenodo.18299145), [T1](https://doi.org/10.5281/zenodo.18299102), [C1](https://doi.org/10.5281/zenodo.18299039) |
 
 ### Generating the protein-coding gene GTF
