@@ -161,7 +161,7 @@ Change the neighbor BED file accordingly:
 | `C1_distances_agg.tsv` | Aggregated distances for C1 |
 | `WT_distances_agg.tsv` | Aggregated distances for WT (baseline) |
 
-The large files can be accessed [here](https://doi.org/10.5281/zenodo.20126785)
+The large files can be accessed [here](https://doi.org/10.5281/zenodo.20126785).
 
 ### Plots directory
 
