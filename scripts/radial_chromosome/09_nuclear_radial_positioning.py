@@ -24,8 +24,11 @@ How we do it:
 4. Average those distances per segment per model.
 5. Make trajectory plots showing how the average changes across
    WT --> T1 --> C1.
-6. Run Wilcoxon signed-rank tests to check if the changes are
-   statistically significant.
+6. Run Mann-Whitney U tests to check if the changes are statistically
+   significant. We use this test instead of a t-test because the data
+   isn't necessarily normally distributed, and we treat the conditions
+   as independent samples since each Chrom3D model is an independent
+   Monte Carlo simulation.
 
 About the BED files:
 - A BED file is a simple tab-separated text file describing genomic
@@ -44,7 +47,7 @@ import glob
 import numpy as np                 
 import pandas as pd                
 import matplotlib.pyplot as plt    
-from scipy.stats import wilcoxon   
+from scipy.stats import mannwhitneyu
 
 # Increase font sizes for all plots
 plt.rcParams.update({
@@ -64,9 +67,9 @@ plt.rcParams.update({
 # -----------------------------------------------------------------------------
 # Folders containing the 3D model files (.cmm) for each condition
 # -----------------------------------------------------------------------------
-WT_CMM_FOLDER = "/path/to/cmm/WT"
-T1_CMM_FOLDER = "/path/to/cmm/T1"
-C1_CMM_FOLDER = "/path/to/cmm/C1"
+WT_CMM_FOLDER = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/WT"
+T1_CMM_FOLDER = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/T1"
+C1_CMM_FOLDER = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/C1"
 
 # Put them in a dictionary so we can loop through them later
 cmm_folders = {
@@ -131,7 +134,7 @@ segment_colors = {
 # -----------------------------------------------------------------------------
 # Where to save all the output files (plots and stats table)
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/path/to/plots/nuclear_positioning"
+OUTPUT_FOLDER = "/Users/nadiaorning/Desktop/UiO/Vår2026/results/plots/nuclear_positioning"
 
 # Order of conditions in the plots (left to right)
 CONDITIONS = ["WT", "T1", "C1"]
@@ -459,9 +462,6 @@ for cond in CONDITIONS:
         # Build a model_id like "model_0000", "model_0001", etc.
         # The {:04d} format means: integer with at least 4 digits,
         # padded with zeros (so 5 becomes "0005").
-        # We use the same numbering across conditions so we can later
-        # PAIR up the same model number across WT, T1, C1 (which we need
-        # for the Wilcoxon signed-rank test).
         model_id = "model_{:04d}".format(model_idx)
 
         # Read the .cmm file
@@ -579,22 +579,25 @@ df_traj["condition"] = pd.Categorical(
 # Sort by label, then condition (so each segment's row appears in WT-T1-C1 order)
 df_traj = df_traj.sort_values(["label", "condition"])
 
-# Print model counts to make sure we have equal numbers for pairing
+# Print model counts per condition
 print("")
-print("Model counts per condition (should be equal for pairing to work):")
+print("Model counts per condition:")
 print(df_agg.groupby("condition")["model"].nunique())
 
 
 # =============================================================================
-# Step 7: Run Wilcoxon signed-rank tests
+# Step 7: Run Mann-Whitney U tests
 # =============================================================================
 # For each segment and each pair of conditions (WT vs T1, WT vs C1, T1 vs C1),
 # we test whether the radial distances are significantly different.
-# This is a PAIRED test, so we have to match up models (model_0000 in WT
-# is paired with model_0000 in T1, etc.).
+# Mann-Whitney U is a non-parametric test that treats the two groups as
+# independent samples. We use it because each Chrom3D model is an
+# independent Monte Carlo simulation, so there is no natural pairing
+# between, say, model 0 in WT and model 0 in T1.
+# (A t-test would assume a normal distribution, which we can't guarantee.)
 
 print("")
-print("--- Wilcoxon signed-rank tests (paired across models) ---")
+print("--- Mann-Whitney U tests (two-sided) ---")
 
 # We'll collect one row per test in this list
 stat_rows = []
@@ -614,57 +617,51 @@ for label in unique_labels:
     # Loop through each pair of conditions
     for c1_name, c2_name in condition_pairs:
 
-        # Get the values for condition 1, indexed by model name
-        # (so we can match up the same model across conditions)
-        s1_rows = sub[sub["condition"] == c1_name]
-        s1 = s1_rows.set_index("model")["mean_radial"]
+        # Get the values for each condition
+        v1 = sub[sub["condition"] == c1_name]["mean_radial"].values
+        v2 = sub[sub["condition"] == c2_name]["mean_radial"].values
 
-        # Same for condition 2
-        s2_rows = sub[sub["condition"] == c2_name]
-        s2 = s2_rows.set_index("model")["mean_radial"]
-
-        # Find the models that are in BOTH conditions (the paired ones)
-        # .intersection gives us the model names that appear in both
-        common = s1.index.intersection(s2.index)
-
-        # If we have fewer than 5 paired models, we don't have enough data
-        # to do a meaningful test, record NaN values and move on.
-        if len(common) < 5:
+        # If either group has too little data, skip the test
+        if len(v1) < 5 or len(v2) < 5:
             print("  " + label + " | " + c1_name + " vs " + c2_name + ": "
-                  "too few paired models (" + str(len(common)) + "), skipping.")
+                  "too few models (" + str(len(v1)) + "/" + str(len(v2))
+                  + "), skipping.")
 
             # Save a row with NaN values so the output table is complete
             no_test_row = {
                 "segment": label,
                 "comparison": c1_name + "_vs_" + c2_name,
-                "n_models": len(common),
-                "mean_diff": np.nan,
+                "n_c1": len(v1),
+                "n_c2": len(v2),
+                "median_c1": np.nan,
+                "median_c2": np.nan,
                 "median_diff": np.nan,
-                "wilcoxon_stat": np.nan,
+                "U_stat": np.nan,
                 "p_value": np.nan,
             }
             stat_rows.append(no_test_row)
             continue
 
-        # Get the actual values, in the same order, as numpy arrays
-        v1 = s1[common].values
-        v2 = s2[common].values
-
-        # Calculate the differences (will use this for direction reporting)
-        diff = v1 - v2
-
-        # Run the Wilcoxon signed-rank test.
-        # Wrap in try/except because it can fail if all differences are zero.
+        # Run the Mann-Whitney U test.
+        # alternative="two-sided" means we test for ANY difference (either
+        # bigger OR smaller), we don't pick a direction in advance.
+        # The test returns:
+        #   stat: the U statistic
+        #   p:    the p-value (smaller = more significant difference)
         try:
-            stat, p = wilcoxon(v1, v2)
+            stat, p = mannwhitneyu(v1, v2, alternative="two-sided")
         except ValueError:
             stat, p = np.nan, np.nan
 
+        # Calculate the medians for each group
+        median_1 = np.median(v1)
+        median_2 = np.median(v2)
+        median_diff = median_1 - median_2
+
         # Figure out the direction of change.
-        # If the median diff is negative, c1 was SMALLER than c2,
+        # If median_diff is negative, c1 is SMALLER than c2,
         # i.e. moving from c1 to c2 means moving FURTHER from centre (peripheral).
         # If positive, c2 is smaller, i.e. moving toward the interior.
-        median_diff = np.median(diff)
         if median_diff < 0:
             direction = "↑ periphery"
         else:
@@ -677,18 +674,20 @@ for label in unique_labels:
         print("  " + label + " | " + c1_name + " vs " + c2_name + ": "
               + "Δmedian={:+.4f}".format(median_diff)
               + " (" + direction + "), "
-              + "W={:.1f}, ".format(stat)
+              + "U={:.1f}, ".format(stat)
               + "p={:.4g}, ".format(p)
-              + "n=" + str(len(common)))
+              + "n=" + str(len(v1)) + "/" + str(len(v2)))
 
         # Save the result
         result_row = {
             "segment": label,
             "comparison": c1_name + "_vs_" + c2_name,
-            "n_models": len(common),
-            "mean_diff": np.mean(diff),
+            "n_c1": len(v1),
+            "n_c2": len(v2),
+            "median_c1": median_1,
+            "median_c2": median_2,
             "median_diff": median_diff,
-            "wilcoxon_stat": stat,
+            "U_stat": stat,
             "p_value": p,
         }
         stat_rows.append(result_row)
