@@ -200,12 +200,6 @@ between the groups, which is not the case here. This is also consistent with
 the test choice used in `08_chromosome_centroid_distance.py` for comparing
 chromosome centroid distances across the same three conditions.
 
-**Model pairing**
-Models are paired by their sorted filename order (model_0000, model_0001, ...),
-which assumes that CMM files are numbered or named consistently across the WT,
-T1, and C1 directories. The script uses `sorted(glob(...))` to ensure
-consistent ordering.
-
 **Whole chromosomes in plot 2**
 Including whole-chromosome radial positions alongside the small translocated
 fragments allows you to see whether the fragment's radial shift is larger or
