@@ -256,6 +256,21 @@ def plot_volcano(de_df, transloc_genes, cond):
     ax.axvline(x=-LFC_THRESHOLD, color="black", linestyle="--", lw=1)
     ax.axhline(y=-np.log10(PADJ_THRESHOLD), color="black", linestyle="--", lw=1)
 
+    # Adding positive control. We know that Hras is upregulated in the T1/C1 cell lines,
+    # so would expect to see this gene in the upregulated genes
+    hras_row = de_df[de_df["gene_name"] == "HRAS"]
+    if not hras_row.empty:
+        ax.annotate(
+            "HRAS",
+            xy=(hras_row["log2FoldChange"].iloc[0],
+                hras_row["-log10(padj)"].iloc[0]),
+            xytext=(15, 15),
+            textcoords="offset points",
+            fontsize=11,
+            fontweight="bold",
+            arrowprops=dict(arrowstyle="->", lw=0.8, color="black"),
+        )
+
     # -------------------------------------------------------------------------
     # Step 6: Add labels and title
     # -------------------------------------------------------------------------
