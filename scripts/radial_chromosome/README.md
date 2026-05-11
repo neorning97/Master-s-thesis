@@ -38,7 +38,7 @@ statistics table.
 
 | Script | What it does | Input | Output |
 |--------|-------------|-------|--------|
-| `09_nuclear_radial_positioning.py` | Tracks radial position of translocated segments across WT, T1, C1; produces trajectory plots and runs Wilcoxon tests | CMM files (WT, T1, C1), translocation BED files | 2 plots + `radial_positioning_stats.tsv` |
+| `09_nuclear_radial_positioning.py` | Tracks radial position of translocated segments across WT, T1, C1; produces trajectory plots and runs Mann-Whitney U tests | CMM files (WT, T1, C1), translocation BED files | 2 plots + `radial_positioning_stats.tsv` |
 
 ---
 
@@ -167,7 +167,7 @@ all models to be processed.
 | File | Description |
 |------|-------------|
 | `per_bead_radial_distances.csv` | Raw per-bead radial distances for every bead, model, and condition (large file) |
-| `radial_positioning_stats.tsv` | Wilcoxon test results for all segment × condition-pair comparisons |
+| `radial_positioning_stats.tsv` | Mann-Whitney U test results for all segment x condition-pair comparisons |
 
 ---
 
@@ -188,15 +188,17 @@ which is then used for statistical testing. This avoids pseudoreplication
 (treating each bead as an independent observation when they are all from the
 same model).
 
-**Why Wilcoxon signed-rank instead of a t-test or Mann-Whitney U?**
+**Why Mann-Whitney U instead of a t-test or Wilcoxon signed-rank?**
 The radial distance distributions are not assumed to be normal, which rules
-out a paired t-test. Mann-Whitney U is also inappropriate here because it
-treats the two groups as independent, but in this analysis there *is* a
-natural pairing: each model in WT is matched by index to the same-numbered
-model in T1 and C1, so we can ask "in this particular structural ensemble,
-did the segment move?" The Wilcoxon signed-rank test is the correct
-non-parametric choice for paired data, testing whether the median per-model
-difference is significantly different from zero.
+out a t-test. Mann-Whitney U is the appropriate non-parametric test for
+comparing two independent samples without assuming normality. We treat the
+conditions as independent because each Chrom3D model is generated as an
+independent Monte Carlo simulation with a unique random seed, so model 0 in
+WT has no natural correspondence to model 0 in T1, even though they share
+a file index. Wilcoxon signed-rank would require a meaningful pairing
+between the groups, which is not the case here. This is also consistent with
+the test choice used in `08_chromosome_centroid_distance.py` for comparing
+chromosome centroid distances across the same three conditions.
 
 **Model pairing**
 Models are paired by their sorted filename order (model_0000, model_0001, ...),
