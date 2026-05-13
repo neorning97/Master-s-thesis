@@ -82,7 +82,7 @@ build the list of translocated gene names.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Edit the variables in the `CONFIG SECTION` near the top of
 `15_de_enrichment.py`:
@@ -103,7 +103,7 @@ PADJ_THRESHOLD = 0.05     # adjusted p-value threshold
 OUTPUT_FOLDER = "/path/to/results/de_enrichment"
 ```
 
-### Step 2 — Run
+### Step 2: Run
 
 ```bash
 python 15_de_enrichment.py
@@ -135,8 +135,8 @@ T1
   Translocated genes:       ....
   Genome background genes:  ....
 
-  Counts — translocation:       {'Up': ..., 'Down': ..., 'No change': ...}
-  Counts — genome background:   {'Up': ..., 'Down': ..., 'No change': ...}
+  Counts: translocation:       {'Up': ..., 'Down': ..., 'No change': ...}
+  Counts: genome background:   {'Up': ..., 'Down': ..., 'No change': ...}
 
   DE enrichment test (translocation vs genome background):
     Table: [[DE_trans, notDE_trans], [DE_bg, notDE_bg]]
