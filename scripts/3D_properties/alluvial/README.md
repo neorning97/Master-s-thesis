@@ -35,7 +35,7 @@ path across WT --> T1 --> C1.
 
 ## Plots produced
 
-### Part 1 — Per-segment plots (one per BED row)
+### Part 1: Per-segment plots (one per BED row)
 
 | Segment | Conditions |
 |---------|-----------|
@@ -48,7 +48,7 @@ path across WT --> T1 --> C1.
 | chr2 fragment – t(2;10) | **WT and C1 only** |
 | chr10 body – t(2;10) | **WT and C1 only** |
 
-### Part 2 — Whole-translocation plots (fragment + body combined)
+### Part 2: Whole-translocation plots (fragment + body combined)
 
 | Translocation | Conditions |
 |--------------|-----------|
@@ -108,7 +108,7 @@ subcompartment labels such as A0, A1, A2, A3, B0, B1, B2, B3.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Open `12_subcompartment_alluvial.R` and edit the variables in the
 `CONFIG SECTION` near the top of the script:
@@ -158,7 +158,7 @@ Things to check before running:
 - **`WT_C1_ONLY`**: lists translocation names that should only be plotted
   for WT and C1. Currently set to `c("t(2;10)")`.
 
-### Step 2 — Run
+### Step 2: Run
 
 ```bash
 Rscript 12_subcompartment_alluvial.R
