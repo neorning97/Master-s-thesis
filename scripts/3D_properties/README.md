@@ -84,7 +84,7 @@ in the CONFIG section.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Open `10_subcompartment_classification.py` and edit the variables in the
 `CONFIG SECTION` near the top of the script:
@@ -125,7 +125,7 @@ OUTPUT_FOLDER = "/path/to/results/subcompartment_classification"
 The keys in `T1_NAME_MAP` and `C1_NAME_MAP` must match the `transloc_id`
 column in your BED files. Check by opening a BED file and reading that column.
 
-### Step 2 — Run the script
+### Step 2: Run the script
 
 ```bash
 python 10_subcompartment_classification.py
