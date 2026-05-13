@@ -41,7 +41,7 @@ Run script 13 before script 14.
 
 ## Requirements
 
-### Script 13 — R ≥ 4.1
+### Script 13: R ≥ 4.1
 
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE))
@@ -49,7 +49,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("DESeq2")
 ```
 
-### Script 14 — Python ≥ 3.10
+### Script 14: Python ≥ 3.10
 
 ```bash
 pip install pandas numpy matplotlib scipy
