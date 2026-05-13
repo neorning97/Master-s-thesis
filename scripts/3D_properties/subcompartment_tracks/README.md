@@ -93,7 +93,7 @@ subcompartment labels such as A0, A1, A2, A3, B0, B1, B2, B3.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Open `11_subcompartment_tracks.py` and edit the variables in the
 `CONFIG SECTION` near the top of the script:
@@ -132,7 +132,7 @@ transloc_conditions = {
 OUTPUT_FOLDER = "/path/to/results/subcompartment_tracks"
 ```
 
-### Step 2 — Run the script
+### Step 2: Run the script
 
 ```bash
 python 11_subcompartment_tracks.py
