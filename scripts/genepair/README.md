@@ -112,14 +112,14 @@ and `x`, `y`, `z` coordinates giving its position in 3D space:
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section in each script
+### Step 1: Edit the CONFIG section in each script
 
 Each script has a clearly marked `CONFIG SECTION` near the top with flat
 top-level variables (e.g. `T1_GENE_FILE`, `C1_CMM_FOLDER`, `OUTPUT_FILE`,
 etc.). Replace all `"/path/to/..."` placeholders with the actual paths to
 your files. Output directories are created automatically.
 
-### Step 2 — Run the scripts in order
+### Step 2: Run the scripts in order
 
 ```bash
 python 01_extract_gene_expression.py
@@ -168,10 +168,10 @@ They need to be unzipped before being used as input files for scripts.
 
 | File | Description |
 |------|-------------|
-| `T1_transloc_scatter.png` | WT vs T1 distances — translocated–neighbor pairs |
-| `T1_control_scatter.png` | WT vs T1 distances — control–neighbor pairs |
-| `C1_transloc_scatter.png` | WT vs C1 distances — translocated–neighbor pairs |
-| `C1_control_scatter.png` | WT vs C1 distances — control–neighbor pairs |
+| `T1_transloc_scatter.png` | WT vs T1 distances, translocated–neighbor pairs |
+| `T1_control_scatter.png` | WT vs T1 distances, control–neighbor pairs |
+| `C1_transloc_scatter.png` | WT vs C1 distances, translocated–neighbor pairs |
+| `C1_control_scatter.png` | WT vs C1 distances, control–neighbor pairs |
 
 In each scatter plot, each point is one gene pair. The red dashed line is
 y = x (equal distance in WT and condition). Points **below** the line are
@@ -199,8 +199,8 @@ distances at once for each translocation, which is much faster than
 nested Python loops.
 
 **Statistical test**: The Wilcoxon signed-rank test is used rather than a
-paired t-test because 3D distance distributions are not normally distributed.
-It tests whether the median pairwise distance is significantly different
+paired t-test because 3D distance distributions cannot be assumed to be normally 
+distributed. It tests whether the median pairwise distance is significantly different
 between the wildtype and the translocated condition.
 
 **Pair matching**: Before plotting, both the WT and condition distance tables
