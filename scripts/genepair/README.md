@@ -157,11 +157,12 @@ Change the neighbor BED file accordingly:
 | `C1_genes_expression.tsv` | Same for C1 |
 | `T1_distances.tsv` | Per-model raw distances for all T1 gene pairs (large file) |
 | `T1_distances_agg.tsv` | Distances aggregated across all T1 models (mean, std, n_models) |
-| `C1_distances.tsv` | Per-model raw distances for C1 |
+| `C1_distances.tsv` | Per-model raw distances for C1 (large file) |
 | `C1_distances_agg.tsv` | Aggregated distances for C1 |
-| `WT_distances_agg.tsv` | Aggregated distances for WT (baseline) |
+| `WT_distances_agg.tsv` | Aggregated distances for WT (baseline, large file) |
 
 The large files can be accessed [here](https://doi.org/10.5281/zenodo.20126785).
+They need to be unzipped before being used as input files for scripts.
 
 ### Plots directory
 
