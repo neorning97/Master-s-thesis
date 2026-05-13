@@ -1,7 +1,7 @@
 # Nuclear Distance Analysis
 
 Scripts for computing and comparing the **radial nuclear position** of
-translocated genes in Chrom3D polymer structural models — i.e. how far each
+translocated genes in Chrom3D polymer structural models, i.e. how far each
 gene is from the nuclear centre before and after a chromosomal translocation.
 
 This analysis is a companion to the gene-pair distance pipeline
@@ -90,7 +90,7 @@ all other attributes and `<link>` elements are ignored.
 
 ## How to run
 
-### Step 1 — Run the gene expression extraction script first
+### Step 1: Run the gene expression extraction script first
 
 This pipeline depends on the gene expression TSV files produced by script 01
 of the gene-pair distance pipeline:
@@ -99,14 +99,14 @@ of the gene-pair distance pipeline:
 python 01_extract_gene_expression.py
 ```
 
-### Step 2 — Edit the CONFIG section in each script
+### Step 2: Edit the CONFIG section in each script
 
 Each script has a `CONFIG SECTION` near the top with flat top-level variables
 (e.g. `T1_GENE_FILE`, `WT_CMM_FOLDER`, `OUTPUT_FILE`). Replace all
 `"/path/to/..."` placeholders with the actual paths to your files. Output
 directories are created automatically.
 
-### Step 3 — Run the scripts in order
+### Step 3: Run the scripts in order
 
 ```bash
 python 05_compute_tc_distance_to_center.py
@@ -132,10 +132,10 @@ python 07_plot_distance_to_center.py
 
 | File | Description |
 |------|-------------|
-| `T1_inside_transloc_scatter.png` | WT vs T1 radial position — translocated genes |
-| `T1_control_scatter.png` | WT vs T1 radial position — control genes |
-| `C1_inside_transloc_scatter.png` | WT vs C1 radial position — translocated genes |
-| `C1_control_scatter.png` | WT vs C1 radial position — control genes |
+| `T1_inside_transloc_scatter.png` | WT vs T1 radial position, translocated genes |
+| `T1_control_scatter.png` | WT vs T1 radial position, control genes |
+| `C1_inside_transloc_scatter.png` | WT vs C1 radial position, translocated genes |
+| `C1_control_scatter.png` | WT vs C1 radial position, control genes |
 
 In each scatter plot, each point is one gene. The red dashed line is y = x
 (equal distance in WT and condition). Points **below** the line moved closer
