@@ -125,7 +125,7 @@ python 16_volcano_plots.py
 
 Edit the variables in the `CONFIG SECTION` near the top of
 `17_translocation_volcano_plots.py`. The most important setting is
-`translocations` — define each translocation as a list of
+`translocations`, define each translocation as a list of
 (chromosome, start, end) coordinate tuples. A gene is included if it
 overlaps any of the listed regions:
 
@@ -186,7 +186,7 @@ python 17_translocation_volcano_plots.py
 
 ### Script 16
 
-Script 16 exports **four TSV files per condition** — two capped at
+Script 16 exports **four TSV files per condition**, two capped at
 `TOP_N_TABLE` rows for quick inspection, and two containing all significant
 DE genes for use in GO enrichment analysis (script 18):
 
@@ -267,7 +267,7 @@ avoids each script becoming too complex.
 The top-N tables (`TOP_N_TABLE = 20` by default) are convenient for quick
 inspection and match the genes labelled on the plot. The all-genes tables
 contain every significant DE translocated gene with no cap, which is
-required for GO enrichment analysis (script 18) — GO enrichment needs a
+required for GO enrichment analysis (script 18), GO enrichment needs a
 sufficiently large gene list to detect statistically significant
 overrepresentation after multiple testing correction. Using only 20 genes
 per list is typically too few.
@@ -285,7 +285,7 @@ changed ones. A gene with a very large fold change but a high p-value
 by -log10(padj) prioritises the most reproducible signals.
 
 **Why use GTF coordinates in script 17 rather than the distance table?**
-Using genomic coordinates is more transparent — any examiner can verify
+Using genomic coordinates is more transparent, any examiner can verify
 which genes are included by checking the coordinates against the BED files.
 It also allows the two reciprocal derivatives of t(3;17) to be analysed
 independently, which would not be possible with the combined distance table.
@@ -293,7 +293,7 @@ independently, which would not be possible with the combined distance table.
 **Why two Fisher tests in script 17?**
 The DE enrichment test asks whether the overall rate of differential
 expression is elevated. The Up/Down bias test asks, among DE genes, whether
-there is a directional shift toward activation or repression — a more
+there is a directional shift toward activation or repression, a more
 specific question directly relevant to the compartment adoption hypothesis.
 
 **Handling of missing or zero padj values**
