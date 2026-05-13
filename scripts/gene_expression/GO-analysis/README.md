@@ -69,7 +69,7 @@ Each input file must contain a `gene_name` column with HGNC gene symbols.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Edit the variables in the `CONFIG SECTION` near the top of
 `18_go_enrichment.R`:
@@ -94,7 +94,7 @@ GO_ONTOLOGY <- "BP"
 PADJ_CUTOFF <- 0.05
 ```
 
-### Step 2 — Run
+### Step 2: Run
 
 From RStudio: open the script and click run.
 
