@@ -92,7 +92,7 @@ represents one genomic bead. Only `beadID`, `x`, `y`, and `z` are used;
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Open `09_nuclear_radial_positioning.py` and edit the variables in the
 `CONFIG SECTION` near the top of the script:
@@ -140,7 +140,7 @@ The keys in `T1_NAME_MAP` and `C1_NAME_MAP` must match the `transloc_id`
 column values in your BED files. Check these by opening the BED file and
 reading the `transloc_id` column.
 
-### Step 2 — Run the script
+### Step 2: Run the script
 
 ```bash
 python 09_nuclear_radial_positioning.py
