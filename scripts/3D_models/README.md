@@ -22,8 +22,8 @@ connected.
 This script tests that hypothesis by computing the distance between the
 **centroids** of two chromosomes (e.g. chr3 and chr17) in each Chrom3D
 structural model, and comparing that distance between:
-- **WT** — wildtype models, where no translocation has occurred
-- **T1** and **C1** — models of the two translocated cell lines
+- **WT**: wildtype models, where no translocation has occurred
+- **T1** and **C1**: models of the two translocated cell lines
 
 If the translocation brings the two chromosomes closer together, we expect
 the centroid distance to be significantly smaller in T1 and/or C1 than in WT.
@@ -34,7 +34,7 @@ the centroid distance to be significantly smaller in T1 and/or C1 than in WT.
 
 Each chromosome is represented in Chrom3D as a chain of genomic beads, each
 positioned at (x, y, z) coordinates in 3D space. The centroid is simply the
-mean x, y, z position across all beads on a chromosome — a single point that
+mean x, y, z position across all beads on a chromosome, a single point that
 summarises where that chromosome sits in the nucleus on average.
 
 The distance between the centroids of two chromosomes is then the Euclidean
@@ -92,13 +92,13 @@ start/end positions, `<link>` elements, and all other attributes are ignored.
 
 ## How to run
 
-### Step 1 — Edit the CONFIG section
+### Step 1: Edit the CONFIG section
 
 Open `08_chromosome_centroid_distance.py` and edit the variables in the
 `CONFIG SECTION` near the top of the script:
 
 ```python
-# The two chromosomes to compare — set to the chromosomes involved
+# The two chromosomes to compare, set to the chromosomes involved
 # in the translocation you are studying
 CHR_A = "chr3"
 CHR_B = "chr17"
@@ -114,7 +114,7 @@ OUTPUT_FOLDER = "/path/to/results/chromosome_centroid_distance"
 
 To analyse a different chromosome pair, simply change `CHR_A` and `CHR_B`.
 
-### Step 2 — Run the script
+### Step 2: Run the script
 
 ```bash
 python 08_chromosome_centroid_distance.py
@@ -126,7 +126,7 @@ python 08_chromosome_centroid_distance.py
 
 ### Plot
 
-`chromosome_distance_boxplot.png` — a box plot showing the distribution of
+`chromosome_distance_boxplot.png`: a box plot showing the distribution of
 centroid distances across all structural models, one box per condition (WT,
 T1, C1). Individual model distances are overlaid as points so the full
 distribution is visible.
@@ -138,7 +138,7 @@ of three pairwise Mann-Whitney U tests:
 
 ```
 Statistical tests (Mann-Whitney U, two-sided):
-  WT vs T1: U=..., p=...  (median WT=..., median T1=... — T1 closer than WT)
+  WT vs T1: U=..., p=...  (median WT=..., median T1=...: T1 closer than WT)
   WT vs C1: U=..., p=...
   T1 vs C1: U=..., p=...
 ```
