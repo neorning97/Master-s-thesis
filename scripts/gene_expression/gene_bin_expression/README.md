@@ -230,11 +230,11 @@ bins show a higher fraction of upregulated genes than the genome-wide average,
 it suggests compartment adoption specifically promotes gene activation rather
 than the elevation being a general property of T1 or C1.
 
-**Only verified translocations are analyzed**
+**Only karyotype translocations are analyzed**
 Script 14 inherits its translocation regions from `bins_annotation.csv`,
-which was produced by script 10 using the verified translocation BED files
-(`verify_T1_translocations.bed`, `verify_C1_translocations.bed`). Only genes
-overlapping bins in those verified regions are included in the bin-stratified
+which was produced by script 10 using the karyotype translocation BED files
+(`karyotype_T1_translocations.bed`, `karyotype_C1_translocations.bed`). Only genes
+overlapping bins in those karyotype regions are included in the bin-stratified
 analysis. The genome-wide control covers all genes regardless.
 
 **First-overlap bin assignment**
