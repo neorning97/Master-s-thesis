@@ -33,6 +33,11 @@ and list in `samplesheets/samplesheet.tsv`):
 - Hi-C contact matrices at 50 kb resolution (`*_merged.mcool`)
 - Domain annotations (`*.domains.50000.bed.gz`)
 
+In practice, the three conditions were run sequentially rather than in
+a single batch, with the samplesheet edited to contain one row at a time
+to manage HPC resource allocation. The combined samplesheet committed
+here produces equivalent results.
+
 ## Output
 
 The pipeline produces 10 `.cmm` model files per condition. The exact
