@@ -228,3 +228,9 @@ unless you want to modify the pipeline parameters:
 4. Run the scripts in numerical order (01 --> 18), as earlier scripts produce
    output files that are used as input by later scripts. Each script's
    README documents which earlier scripts must be run first.
+
+## License
+
+The code in this repository is released under the MIT License (see
+`LICENSE` for the full text). Data files are subject to the licenses of
+their original sources (GEO, GENCODE, etc.).
