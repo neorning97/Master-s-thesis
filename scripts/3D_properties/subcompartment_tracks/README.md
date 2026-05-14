@@ -26,7 +26,7 @@ after the translocation and whether it begins to resemble its new neighborhood.
 ## Overview
 
 This is a single self-contained script that produces one figure per
-translocation per applicable condition.
+karyotype translocation per applicable condition.
 
 | Script | What it does | Input | Output |
 |--------|-------------|-------|--------|
@@ -64,8 +64,8 @@ pip install pandas matplotlib
 | File | Description | Source |
 |------|-------------|--------|
 | `GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph` | 100 kb subcompartment annotations for WT, T1, and C1 | GEO: GSE246947 |
-| `verify_T1_translocations.bed` | Genomic coordinates of translocated segments in T1 | This study |
-| `verify_C1_translocations.bed` | Genomic coordinates of translocated segments in C1 | This study |
+| `karyotype_T1_translocations.bed` | Genomic coordinates of karyotype translocated segments in T1 | This study |
+| `karyotype_C1_translocations.bed` | Genomic coordinates of karyotype translocated segments in C1 | This study |
 
 ### Translocation BED format
 
@@ -103,8 +103,8 @@ Open `11_subcompartment_tracks.py` and edit the variables in the
 SUBCOMPARTMENT_FILE = "/path/to/subcompartments.bedGraph"
 
 # Translocation BED files
-T1_TRANSLOC_BED = "/path/to/verify_T1_translocations.bed"
-C1_TRANSLOC_BED = "/path/to/verify_C1_translocations.bed"
+T1_TRANSLOC_BED = "/path/to/karyotype_T1_translocations.bed"
+C1_TRANSLOC_BED = "/path/to/karyotype_C1_translocations.bed"
 
 # Maps transloc_id values in the BED to human-readable names
 # used in plot titles and output filenames
