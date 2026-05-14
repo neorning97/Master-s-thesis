@@ -59,8 +59,8 @@ pip install pandas numpy matplotlib scipy
 | `cmm/WT/*.cmm` | Chrom3D structural models for the wildtype | GEO: GSE246947 |
 | `cmm/T1/*.cmm` | Chrom3D structural models for condition T1 | GEO: GSE246947 |
 | `cmm/C1/*.cmm` | Chrom3D structural models for condition C1 | GEO: GSE246947 |
-| `verify_T1_translocations.bed` | Genomic coordinates of translocated segments in T1 | This study |
-| `verify_C1_translocations.bed` | Genomic coordinates of translocated segments in C1 | This study |
+| `karyotype_T1_translocations.bed` | Genomic coordinates of translocated segments in T1 | This study |
+| `karyotype_C1_translocations.bed` | Genomic coordinates of translocated segments in C1 | This study |
 
 ### Translocation BED format
 
