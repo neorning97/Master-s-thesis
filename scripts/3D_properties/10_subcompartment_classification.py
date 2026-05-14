@@ -76,8 +76,8 @@ SUBCOMPARTMENT_FILE = "/path/to/GSE246947_MCF10A_WT_T1_C1_100000.subcompartments
 # -----------------------------------------------------------------------------
 # BED files for each condition's translocated regions
 # -----------------------------------------------------------------------------
-T1_TRANSLOC_BED = "/path/to/verify_T1_translocations.bed"
-C1_TRANSLOC_BED = "/path/to/verify_C1_translocations.bed"
+T1_TRANSLOC_BED = "/path/to/karyotype_T1_translocations.bed"
+C1_TRANSLOC_BED = "/path/to/karyotype_C1_translocations.bed"
 
 # Group them in a dict for looping
 transloc_beds = {
@@ -91,10 +91,10 @@ transloc_beds = {
 # - "new" neighbor: where the translocated piece ENDED UP
 #   (so we can figure out what subcompartment to "adopt")
 # - "old" neighbor: where the translocated piece CAME FROM
-T1_NEW_NEIGHBOR = "/path/to/verify_T1_neighbor.bed"
-T1_OLD_NEIGHBOR = "/path/to/verify_T1_neighbor_originchr.bed"
-C1_NEW_NEIGHBOR = "/path/to/verify_C1_neighbor.bed"
-C1_OLD_NEIGHBOR = "/path/to/verify_C1_neighbor_originchr.bed"
+T1_NEW_NEIGHBOR = "/path/to/karyotype_T1_neighbor.bed"
+T1_OLD_NEIGHBOR = "/path/to/karyotype_T1_neighbor_originchr.bed"
+C1_NEW_NEIGHBOR = "/path/to/karyotype_C1_neighbor.bed"
+C1_OLD_NEIGHBOR = "/path/to/karyotype_C1_neighbor_originchr.bed"
 
 # Nested dict so we can do neighbor_beds[condition]["new"] etc.
 neighbor_beds = {
