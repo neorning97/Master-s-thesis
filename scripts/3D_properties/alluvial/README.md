@@ -82,8 +82,8 @@ install.packages(c("tidyverse", "ggalluvial"))
 | File | Description | Source |
 |------|-------------|--------|
 | `GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph` | 100 kb subcompartment annotations for WT, T1, and C1 | GEO: GSE246947 |
-| `verify_T1_translocations.bed` | Segment coordinates for T1 | This study |
-| `verify_C1_translocations.bed` | Segment coordinates for C1 | This study |
+| `karyotype_T1_translocations.bed` | Segment coordinates for T1 | This study |
+| `karyotype_C1_translocations.bed` | Segment coordinates for C1 | This study |
 
 ### Translocation BED format
 
@@ -118,8 +118,8 @@ Open `12_subcompartment_alluvial.R` and edit the variables in the
 INPUT_FILE <- "/path/to/subcompartments.bedGraph"
 
 # BED files for translocations, one for each condition
-T1_BED <- "/path/to/verify_T1_translocations.bed"
-C1_BED <- "/path/to/verify_C1_translocations.bed"
+T1_BED <- "/path/to/karyotype_T1_translocations.bed"
+C1_BED <- "/path/to/karyotype_C1_translocations.bed"
 
 # Maps from "label" column in the BED files to readable segment names
 LABEL_NAMES <- c(
