@@ -67,9 +67,9 @@ plt.rcParams.update({
 # -----------------------------------------------------------------------------
 # Folders containing the 3D model files (.cmm) for each condition
 # -----------------------------------------------------------------------------
-WT_CMM_FOLDER = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/WT"
-T1_CMM_FOLDER = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/T1"
-C1_CMM_FOLDER = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/changed_colors/C1"
+WT_CMM_FOLDER = "/path/to/cmm/WT"
+T1_CMM_FOLDER = "/path/to/cmm/T1"
+C1_CMM_FOLDER = "/path/to/cmm/C1"
 
 # Put them in a dictionary so we can loop through them later
 cmm_folders = {
@@ -83,8 +83,8 @@ cmm_folders = {
 # -----------------------------------------------------------------------------
 # A BED file row tells us "this segment from chromX is at position start-end"
 # Required columns in these files: chrom, start, end, transloc_id, label
-T1_BED_FILE = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/verify_T1_translocations.bed"
-C1_BED_FILE = "/Users/nadiaorning/Desktop/UiO/Høst2025/data/RNA-seq/folder/raw/verify_C1_translocations.bed"
+T1_BED_FILE = "/path/to/verify_T1_translocations.bed"
+C1_BED_FILE = "/path/to/verify_C1_translocations.bed"
 
 bed_files = {
     "T1": T1_BED_FILE,
@@ -134,7 +134,7 @@ segment_colors = {
 # -----------------------------------------------------------------------------
 # Where to save all the output files (plots and stats table)
 # -----------------------------------------------------------------------------
-OUTPUT_FOLDER = "/Users/nadiaorning/Desktop/UiO/Vår2026/results/plots/nuclear_positioning"
+OUTPUT_FOLDER = "/path/to/results/plots/nuclear_positioning"
 
 # Order of conditions in the plots (left to right)
 CONDITIONS = ["WT", "T1", "C1"]
