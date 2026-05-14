@@ -33,7 +33,7 @@ output directory.
 | 4.2.5 | Intrachromosomal gene-pair distance, WT vs T1 (translocated and control) | `04_plot_results.py` | `T1_transloc_scatter.png`, `T1_control_scatter.png` |
 | 4.2.6 | Intrachromosomal gene-pair distance, WT vs C1 (translocated and control) | `04_plot_results.py` | `C1_transloc_scatter.png`, `C1_control_scatter.png` |
 | 4.2.7 | Intrachromosomal gene-pair distance, WT vs T1 (karyotype translocated and control) | `04_plot_results.py` | `T1_transloc_scatter.png`, `T1_control_scatter.png` |
-| 4.2.4 | Intrachromosomal gene-pair distance, WT vs C1 (karyotype translocated and control) | `04_plot_results.py` | `C1_transloc_scatter.png`, `C1_control_scatter.png` |
+| 4.2.8 | Intrachromosomal gene-pair distance, WT vs C1 (karyotype translocated and control) | `04_plot_results.py` | `C1_transloc_scatter.png`, `C1_control_scatter.png` |
 
 #### 4.2.3 Radial distances to nuclear centre
 
