@@ -1,8 +1,7 @@
 # Figure --> Script Map
 
 This document maps every figure in the thesis to the script that
-produced it. Output paths are relative to each script's configured
-output directory.
+produced it. 
 
 ## Chapter 4: Results
 
