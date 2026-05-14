@@ -19,6 +19,8 @@ output directory.
 
 #### 4.2.1 Gene-pair distances (interchromosomal)
 
+| Figure | Description | Script | Output file |
+|--------|-------------|--------|-------------|
 | 4.2.1 | Interchromosomal gene-pair distance, WT vs T1 (translocated and control) | `04_plot_results.py` | `T1_transloc_scatter.png`, `T1_control_scatter.png` |
 | 4.2.2 | Interchromosomal gene-pair distance, WT vs C1 (translocated and control) | `04_plot_results.py` | `C1_transloc_scatter.png`, `C1_control_scatter.png` |
 | 4.2.3 | Interchromosomal gene-pair distance, WT vs T1 (karyotype translocated and control) | `04_plot_results.py` | `T1_transloc_scatter.png`, `T1_control_scatter.png` |
@@ -26,6 +28,8 @@ output directory.
 
 #### 4.2.2 Gene-pair distances (intrachromosomal)
 
+| Figure | Description | Script | Output file |
+|--------|-------------|--------|-------------|
 | 4.2.5 | Intrachromosomal gene-pair distance, WT vs T1 (translocated and control) | `04_plot_results.py` | `T1_transloc_scatter.png`, `T1_control_scatter.png` |
 | 4.2.6 | Intrachromosomal gene-pair distance, WT vs C1 (translocated and control) | `04_plot_results.py` | `C1_transloc_scatter.png`, `C1_control_scatter.png` |
 | 4.2.7 | Intrachromosomal gene-pair distance, WT vs T1 (karyotype translocated and control) | `04_plot_results.py` | `T1_transloc_scatter.png`, `T1_control_scatter.png` |
