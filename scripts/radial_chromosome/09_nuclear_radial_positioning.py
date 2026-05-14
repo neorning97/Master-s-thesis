@@ -83,8 +83,8 @@ cmm_folders = {
 # -----------------------------------------------------------------------------
 # A BED file row tells us "this segment from chromX is at position start-end"
 # Required columns in these files: chrom, start, end, transloc_id, label
-T1_BED_FILE = "/path/to/verify_T1_translocations.bed"
-C1_BED_FILE = "/path/to/verify_C1_translocations.bed"
+T1_BED_FILE = "/path/to/karyotype_T1_translocations.bed"
+C1_BED_FILE = "/path/to/karyotype_C1_translocations.bed"
 
 bed_files = {
     "T1": T1_BED_FILE,
