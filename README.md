@@ -160,7 +160,7 @@ pip install -r requirements.txt
 R 4.4.2 with Bioconductor 3.20 was used. The full session information
 including all package versions is in `sessionInfo.txt`.
 
-\`\`\`r
+```r
 # CRAN packages
 install.packages(c("tidyverse", "ggalluvial", "ggplot2"))
 
@@ -169,7 +169,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install(version = "3.20")
 BiocManager::install(c("DESeq2", "clusterProfiler", "org.Hs.eg.db"))
-\`\`\`
+```
 
 ### Chrom3D pipeline
 
