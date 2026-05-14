@@ -144,25 +144,32 @@ grep -v "^#" gencode.v43.annotation.gtf \
 
 ## Dependencies
 
+The exact package versions used in this thesis are recorded in
+`requirements.txt` (Python) and `sessionInfo.txt` (R). For full
+reproducibility, install these specific versions.
+
 ### Python scripts (scripts 01–11, 14–17)
 
+Python 3.13.6 was used. Install the exact versions from `requirements.txt`:
 ```bash
-pip install pandas numpy matplotlib seaborn scipy bioframe
+pip install -r requirements.txt
 ```
-
-Python ≥ 3.10 is required.
 
 ### R scripts (scripts 12, 13, 18)
 
-```r
+R 4.4.2 with Bioconductor 3.20 was used. The full session information
+including all package versions is in `sessionInfo.txt`.
+
+\`\`\`r
+# CRAN packages
 install.packages(c("tidyverse", "ggalluvial", "ggplot2"))
 
+# Bioconductor packages (release 3.20)
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
+BiocManager::install(version = "3.20")
 BiocManager::install(c("DESeq2", "clusterProfiler", "org.Hs.eg.db"))
-```
-
-R ≥ 4.1 is required.
+\`\`\`
 
 ### Chrom3D pipeline
 
