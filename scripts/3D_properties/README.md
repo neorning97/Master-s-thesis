@@ -1,6 +1,6 @@
 # Subcompartment Classification Analysis
 
-Script for classifying genomic bins in verified translocated regions as **retained**,
+Script for classifying genomic bins in karyotype translocated regions as **retained**,
 **adopted**, or **other** relative to the wildtype chromatin subcompartment
 state, and testing whether those fractions differ significantly from the
 genome-wide background.
@@ -56,12 +56,12 @@ pip install pandas numpy matplotlib scipy
 | File | Description | Source |
 |------|-------------|--------|
 | `GSE246947_MCF10A_WT_T1_C1_100000.subcompartments.bedGraph` | 100 kb subcompartment annotations for WT, T1, and C1 | GEO: GSE246947 |
-| `verify_T1_translocations.bed` | Genomic coordinates of verified translocated regions in T1 | This study |
-| `verify_C1_translocations.bed` | Genomic coordinates of verified translocated regions in C1 | This study |
-| `verify_T1_neighbor.bed` | neighboring regions on the receiving chromosome for T1 | This study |
-| `verify_T1_neighbor_originchr.bed` | neighboring regions on the origin chromosome for T1 | This study |
-| `verify_C1_neighbor.bed` | neighboring regions on the receiving chromosome for C1 | This study |
-| `verify_C1_neighbor_originchr.bed` | neighboring regions on the origin chromosome for C1 | This study |
+| `karyotype_T1_translocations.bed` | Genomic coordinates of karyotype translocated regions in T1 | This study |
+| `karyotype_C1_translocations.bed` | Genomic coordinates of karyotype translocated regions in C1 | This study |
+| `karyotype_T1_neighbor.bed` | neighboring regions on the receiving chromosome for T1 | This study |
+| `karyotype_T1_neighbor_originchr.bed` | neighboring regions on the origin chromosome for T1 | This study |
+| `karyotype_C1_neighbor.bed` | neighboring regions on the receiving chromosome for C1 | This study |
+| `karyotype_C1_neighbor_originchr.bed` | neighboring regions on the origin chromosome for C1 | This study |
 
 ### Subcompartment bedGraph format
 
@@ -94,16 +94,16 @@ Open `10_subcompartment_classification.py` and edit the variables in the
 SUBCOMPARTMENT_FILE = "/path/to/subcompartments.bedGraph"
 
 # Translocation BED files
-T1_TRANSLOC_BED = "/path/to/verify_T1_translocations.bed"
-C1_TRANSLOC_BED = "/path/to/verify_C1_translocations.bed"
+T1_TRANSLOC_BED = "/path/to/karyotype_T1_translocations.bed"
+C1_TRANSLOC_BED = "/path/to/karyotype_C1_translocations.bed"
 
 # Neighbor BED files
 # - "new" neighbor: where the translocated piece ENDED UP
 # - "old" neighbor: where the translocated piece CAME FROM
-T1_NEW_NEIGHBOR = "/path/to/verify_T1_neighbor.bed"
-T1_OLD_NEIGHBOR = "/path/to/verify_T1_neighbor_originchr.bed"
-C1_NEW_NEIGHBOR = "/path/to/verify_C1_neighbor.bed"
-C1_OLD_NEIGHBOR = "/path/to/verify_C1_neighbor_originchr.bed"
+T1_NEW_NEIGHBOR = "/path/to/karyotype_T1_neighbor.bed"
+T1_OLD_NEIGHBOR = "/path/to/karyotype_T1_neighbor_originchr.bed"
+C1_NEW_NEIGHBOR = "/path/to/karyotype_C1_neighbor.bed"
+C1_OLD_NEIGHBOR = "/path/to/karyotype_C1_neighbor_originchr.bed"
 
 # Maps from transloc_id (in BED files) to readable names for plot labels
 T1_NAME_MAP = {
